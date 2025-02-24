@@ -1,0 +1,79 @@
+<!-- templates/admin/generate_bws_tuples.html -->
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+  {{ block.super }}
+  <style>
+    .form-row {
+      padding: 10px 0;
+    }
+    .form-row label {
+      display: inline-block;
+      width: 200px;
+    }
+    .form-row input, .form-row select {
+      padding: 5px;
+    }
+    .submit-row {
+      margin-top: 20px;
+    }
+  </style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+  &rsaquo; <a href="{% url 'admin:vad_survey_word_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+  &rsaquo; {% trans 'Generate BWS Tuples' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  <h1>Best-Worst Scaling 튜플 생성</h1>
+  <div class="module">
+    <form action="" method="post">
+      {% csrf_token %}
+
+      <div class="form-row">
+        <label for="items_per_tuple">튜플당 단어 수:</label>
+        <input type="number" id="items_per_tuple" name="items_per_tuple" value="4" min="3" max="10">
+        <p class="help">각 튜플에 포함될 단어 수 (일반적으로 4 또는 5)</p>
+      </div>
+
+      <div class="form-row">
+        <label for="scaling_factor">스케일링 계수:</label>
+        <input type="number" id="scaling_factor" name="scaling_factor" value="2.0" min="0.5" max="5.0" step="0.1">
+        <p class="help">생성할 튜플 수 = 단어 수 × 스케일링 계수</p>
+      </div>
+
+      <div class="form-row">
+        <label for="iterations">반복 횟수:</label>
+        <input type="number" id="iterations" name="iterations" value="100" min="10" max="1000">
+        <p class="help">최적의 튜플 세트를 찾기 위한 시뮬레이션 반복 횟수</p>
+      </div>
+
+      <div class="form-row">
+        <label for="dimension">차원:</label>
+        <select id="dimension" name="dimension">
+          <option value="V">Valence (감정가)</option>
+          <option value="A">Arousal (각성도)</option>
+          <option value="D">Dominance (지배성)</option>
+        </select>
+        <p class="help">이 차원에 대한 튜플을 생성합니다</p>
+      </div>
+
+      <div class="submit-row">
+        <input type="submit" value="튜플 생성" class="default">
+      </div>
+
+      <p class="help" style="margin-top:20px;">
+        <strong>참고:</strong> 단어 수와 설정에 따라 생성 과정이 몇 분 정도 걸릴 수 있습니다.
+        생성이 완료될 때까지 기다려주세요.
+      </p>
+    </form>
+  </div>
+</div>
+{% endblock %}

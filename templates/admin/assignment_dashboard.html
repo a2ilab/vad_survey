@@ -1,0 +1,395 @@
+<!-- templates/admin/assignment_dashboard.html -->
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+<style>
+  .dashboard-container {
+    padding: 20px 0;
+  }
+  .stats-overview {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-bottom: 30px;
+  }
+  .stat-card {
+    flex: 1;
+    min-width: 200px;
+    padding: 20px;
+    background-color: #2a2a2a;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    text-align: center;
+    border: 1px solid #444;
+  }
+  .stat-card h3 {
+    margin-top: 0;
+    color: #ddd;
+    font-size: 14px;
+    text-transform: uppercase;
+    font-weight: bold;
+  }
+  .stat-card .value {
+    font-size: 32px;
+    font-weight: bold;
+    color: #4a90e2;
+  }
+  .stat-card .description {
+    font-size: 12px;
+    color: #aaa;
+    margin-top: 5px;
+  }
+  .dashboard-section {
+    margin-bottom: 40px;
+  }
+  .dashboard-section h2 {
+    margin-bottom: 20px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #444;
+    color: #fff;
+  }
+  .chart-container {
+    background: #2a2a2a;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    margin-bottom: 30px;
+    border: 1px solid #444;
+  }
+  .dimension-progress {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+  }
+  .dimension-card {
+    background: #2a2a2a;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    border: 1px solid #444;
+  }
+  .dimension-title {
+    font-weight: bold;
+    margin-bottom: 15px;
+    font-size: 18px;
+    color: #4a90e2;
+  }
+  .progress-bar-container {
+    margin-bottom: 15px;
+  }
+  .progress-bar-label {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5px;
+    color: #ddd;
+  }
+  .progress-bar {
+    height: 12px;
+    background-color: #333;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4CAF50, #8BC34A);
+  }
+  .progress-bar-fill.partial {
+    background: linear-gradient(90deg, #FFC107, #FFEB3B);
+  }
+  .users-table {
+    width: 100%;
+    border-collapse: collapse;
+    color: #ddd;
+  }
+  .users-table th,
+  .users-table td {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid #444;
+  }
+  .users-table th {
+    background-color: #222;
+    font-weight: bold;
+    color: #fff;
+  }
+  .users-table tr:hover {
+    background-color: #333;
+  }
+  .users-table a {
+    color: #4a90e2;
+    text-decoration: none;
+  }
+  .users-table a:hover {
+    text-decoration: underline;
+  }
+  .action-buttons {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+  }
+  .action-button {
+    padding: 10px 15px;
+    background-color: #4a90e2;
+    color: white;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: bold;
+    display: inline-flex;
+    align-items: center;
+    transition: background-color 0.2s;
+  }
+  .action-button:hover {
+    background-color: #3a80d2;
+  }
+  .completion-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 5px;
+  }
+  .completed {
+    background-color: #4CAF50;
+  }
+  .in-progress {
+    background-color: #FFC107;
+  }
+  .not-started {
+    background-color: #F44336;
+  }
+  .timestamp {
+    color: #999;
+    font-size: 12px;
+  }
+  /* 브레드크럼 개선 */
+  .breadcrumbs {
+    background: #2a2a2a;
+    padding: 10px 15px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    color: #ddd;
+  }
+  .breadcrumbs a {
+    color: #4a90e2;
+  }
+  h1 {
+    color: #fff;
+    border-bottom: 1px solid #444;
+    padding-bottom: 10px;
+  }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label='vad_survey' %}">VAD 설문 관리</a>
+  &rsaquo; <a href="{% url 'admin:vad_survey_userwordtuple_changelist' %}">작업자 할당 관리</a>
+  &rsaquo; {% trans '작업 진행 현황 대시보드' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  <div class="action-buttons">
+    <a href="{% url 'admin:assign-tuples' %}" class="action-button">
+      <span>새 튜플 할당</span>
+    </a>
+    <a href="{% url 'admin:vad_survey_userwordtuple_changelist' %}" class="action-button">
+      <span>할당 관리</span>
+    </a>
+  </div>
+
+  <div class="dashboard-container">
+    <!-- 주요 통계 -->
+    <div class="stats-overview">
+      <div class="stat-card">
+        <h3>단어 수</h3>
+        <div class="value">{{ word_count }}</div>
+        <div class="description">데이터베이스 등록 단어</div>
+      </div>
+
+      <div class="stat-card">
+        <h3>튜플 수</h3>
+        <div class="value">{{ tuple_count }}</div>
+        <div class="description">BWS 평가용 튜플</div>
+      </div>
+
+      <div class="stat-card">
+        <h3>활성 작업자</h3>
+        <div class="value">{{ active_users }}</div>
+        <div class="description">정확도 80% 이상 유지</div>
+      </div>
+
+      <div class="stat-card">
+        <h3>전체 진행률</h3>
+        <div class="value">{{ progress_stats.overall_completion }}%</div>
+        <div class="description">전체 목표 대비</div>
+      </div>
+    </div>
+
+    <!-- 전체 진행 상황 -->
+    <div class="dashboard-section">
+      <h2>전체 진행 상황</h2>
+
+      <div class="dimension-progress">
+        {% for stat in dimension_stats %}
+        <div class="dimension-card">
+          <div class="dimension-title">{{ stat.name }} ({{ stat.dimension }})</div>
+
+          <div class="progress-bar-container">
+            <div class="progress-bar-label">
+              <span>평가 시작된 튜플</span>
+              <span>{{ stat.rated }}/{{ stat.total }} ({{ stat.rated_percent }}%)</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-bar-fill partial" style="width: {{ stat.rated_percent }}%;"></div>
+            </div>
+          </div>
+
+          <div class="progress-bar-container">
+            <div class="progress-bar-label">
+              <span>완전히 평가된 튜플</span>
+              <span>{{ stat.fully_rated }}/{{ stat.total }} ({{ stat.fully_rated_percent }}%)</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-bar-fill" style="width: {{ stat.fully_rated_percent }}%;"></div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- 평가 추이 차트 -->
+    <div class="dashboard-section">
+      <h2>일별 평가 추이 (최근 2주)</h2>
+
+      <div class="chart-container">
+        <canvas id="dailyRatingsChart" height="300"></canvas>
+      </div>
+    </div>
+
+    <!-- 작업자별 진행 상황 -->
+    <div class="dashboard-section">
+      <h2>작업자별 진행 상황 (상위 20명)</h2>
+
+      <table class="users-table">
+        <thead>
+          <tr>
+            <th>작업자</th>
+            <th>할당 튜플</th>
+            <th>완료 튜플</th>
+            <th>총 평가 수</th>
+            <th>완료율</th>
+            <th>마지막 활동</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in user_stats %}
+          <tr>
+            <td>
+              <a href="{% url 'admin:auth_user_change' user.id %}">{{ user.username }}</a>
+            </td>
+            <td>{{ user.assignments }}</td>
+            <td>{{ user.completed }}</td>
+            <td>{{ user.ratings }}</td>
+            <td>
+              {% if user.assignments > 0 %}
+                {% widthratio user.completed user.assignments 100 %}%
+              {% else %}
+                0%
+              {% endif %}
+            </td>
+            <td>
+              {% if user.last_rating %}
+                <span class="timestamp">{{ user.last_rating|date:"Y-m-d H:i" }}</span>
+              {% else %}
+                <span class="timestamp">-</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Chart.js 다크 모드 설정
+    Chart.defaults.color = '#ddd';
+    Chart.defaults.scale.grid.color = 'rgba(255, 255, 255, 0.1)';
+
+    // 일별 평가 차트
+    const dailyRatingsData = {{ daily_chart_data|safe }};
+
+    const ctx = document.getElementById('dailyRatingsChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: dailyRatingsData.map(d => d.date),
+        datasets: [{
+          label: '일별 평가 수',
+          data: dailyRatingsData.map(d => d.count),
+          fill: true,
+          backgroundColor: 'rgba(74, 144, 226, 0.2)',
+          borderColor: 'rgba(74, 144, 226, 1)',
+          tension: 0.2,
+          pointRadius: 4,
+          pointHoverRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: {
+              color: '#ddd'
+            }
+          },
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            titleColor: '#fff',
+            bodyColor: '#ddd',
+            borderColor: '#444',
+            borderWidth: 1
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: '평가 수',
+              color: '#ddd'
+            },
+            ticks: {
+              color: '#ddd'
+            }
+          },
+          x: {
+            title: {
+              display: true,
+              text: '날짜',
+              color: '#ddd'
+            },
+            ticks: {
+              color: '#ddd'
+            }
+          }
+        }
+      }
+    });
+  });
+</script>
+{% endblock %}

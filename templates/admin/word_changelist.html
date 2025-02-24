@@ -1,0 +1,12 @@
+<!-- templates/admin/word_changelist.html -->
+{% extends 'admin/change_list.html' %}
+{% load i18n admin_urls %}
+
+{% block object-tools-items %}
+  <li>
+    <a href="{% url 'admin:vad_survey_word_generate_bws_tuples' %}" class="btn btn-primary">
+      BWS 튜플 생성
+    </a>
+  </li>
+  {{ block.super }}
+{% endblock %}

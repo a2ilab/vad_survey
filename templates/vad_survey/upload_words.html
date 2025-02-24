@@ -1,0 +1,11 @@
+{% extends "vad_survey/base.html" %}
+
+{% block content %}
+<h2>Word 목록 업로드</h2>
+<p>CSV 파일을 업로드하여 Word 목록을 추가하세요.</p>
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <input type="file" name="csv_file" accept=".csv" required>
+    <button type="submit" class="btn btn-primary">업로드</button>
+</form>
+{% endblock %}

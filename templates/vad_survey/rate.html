@@ -1,0 +1,82 @@
+{% extends 'vad_survey/base.html' %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6">
+    <h2 class="text-2xl font-bold mb-6">단어 평가 (남은 평가: {{ ratings_left }})</h2>
+
+    {% if messages %}
+    <div class="mb-6">
+        {% for message in messages %}
+        <div class="p-4 mb-4 {% if message.tags == 'success' %}bg-green-100 text-green-700{% elif message.tags == 'error' %}bg-red-100 text-red-700{% elif message.tags == 'warning' %}bg-yellow-100 text-yellow-700{% else %}bg-blue-100 text-blue-700{% endif %} rounded">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if word_tuple %}
+    <form method="post" class="space-y-8" id="ratingForm">
+        {% csrf_token %}
+        <input type="hidden" name="tuple_id" value="{{ word_tuple.id }}">
+
+        <div class="text-sm text-gray-500 mb-4">
+            평가 중인 튜플: #{{ word_tuple.id }} ({{ dimension.name }} 차원)
+        </div>
+
+        <div class="border-b pb-6">
+            <h3 class="text-xl font-semibold mb-4">{{ dimension.name }} 평가</h3>
+
+            <!-- 차원 설명 추가 -->
+            <p class="text-gray-600 mb-4">
+                {% if dimension.code == 'V' %}
+                <strong>Valence(정서가)</strong>: 긍정적인 감정(행복, 만족)부터 부정적인 감정(불행, 불만족)까지
+                {% elif dimension.code == 'A' %}
+                <strong>Arousal(각성도)</strong>: 흥분, 활성화 수준부터 평온, 졸음까지
+                {% elif dimension.code == 'D' %}
+                <strong>Dominance(지배력)</strong>: 통제, 영향력 있음부터 복종, 영향력 없음까지
+                {% endif %}
+            </p>
+
+            <div class="space-y-6">
+                <div class="space-y-4">
+                    <label class="block text-sm font-medium text-gray-700">가장 높은 {{ dimension.name }}의 단어 선택:</label>
+                    <div class="grid grid-cols-2 gap-4">
+                        {% for word in words %}
+                            <label class="flex items-center space-x-2">
+                                <input type="radio" name="best_word" value="{{ word.id }}" required
+                                       class="dimension-select" data-type="best">
+                                <span>{{ word.text }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <label class="block text-sm font-medium text-gray-700">가장 낮은 {{ dimension.name }}의 단어 선택:</label>
+                    <div class="grid grid-cols-2 gap-4">
+                        {% for word in words %}
+                            <label class="flex items-center space-x-2">
+                                <input type="radio" name="worst_word" value="{{ word.id }}" required
+                                       class="dimension-select" data-type="worst">
+                                <span>{{ word.text }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="w-full py-2 px-4 bg-blue-500 text-white rounded hover:bg-blue-600">
+            평가 제출
+        </button>
+    </form>
+    {% else %}
+    <div class="p-4 bg-yellow-100 text-yellow-700 rounded mb-4">
+        평가할 차원이 없습니다. 이미 모든 차원을 평가했거나 시스템 오류가 발생했습니다.
+    </div>
+    <a href="{% url 'vad_survey:rate_words' %}" class="block w-full text-center py-2 px-4 bg-blue-500 text-white rounded hover:bg-blue-600">
+        새로고침
+    </a>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends 'vad_survey/base.html' %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
+    <div class="text-center">
+        <h2 class="text-2xl font-bold mb-4">평가 완료</h2>
+        <p class="text-gray-600 mb-6">
+            모든 단어 쌍에 대한 평가를 완료하셨습니다. 
+            참여해 주셔서 감사합니다!
+        </p>
+        
+        <div class="space-y-4">
+            <p class="text-gray-700">
+                귀하의 평가 데이터는 한국어 VAD 어휘집 구축에 
+                소중하게 활용될 것입니다.
+            </p>
+            
+            {% if user.is_authenticated %}
+                <div class="mt-6">
+                    <a href="{% url 'vad_survey:rate_words' %}"
+                       class="inline-block bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">
+                        새로운 평가 시작하기
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

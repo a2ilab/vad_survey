@@ -1,0 +1,291 @@
+<!-- templates/admin/assign_tuples.html -->
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+  .form-row {
+    padding: 10px 0;
+    border-bottom: 1px solid #444;
+  }
+  .form-row label {
+    display: inline-block;
+    width: 200px;
+    vertical-align: top;
+    color: #fff;
+    font-weight: 500;
+  }
+  .form-row .help {
+    color: #aaa;
+    margin-left: 200px;
+    padding-top: 4px;
+  }
+  .stats-container {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    gap: 20px;
+  }
+  .stats-box {
+    flex: 1;
+    min-width: 200px;
+    padding: 15px;
+    border-radius: 5px;
+    background-color: #2a2a2a;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    border: 1px solid #444;
+    color: #eee;
+  }
+  .stats-title {
+    font-weight: bold;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #555;
+    padding-bottom: 5px;
+    color: #fff;
+  }
+  .stat-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+  }
+  .errorlist {
+    color: #ff6b6b;
+    font-weight: 500;
+  }
+  .submit-row {
+    margin-top: 20px;
+  }
+  ul.users-list {
+    max-height: 250px;
+    overflow-y: auto;
+    columns: 3;
+    padding: 10px;
+    background: #2a2a2a;
+    border-radius: 4px;
+    margin-left: 200px;
+    border: 1px solid #444;
+  }
+  .users-list label {
+    color: #ddd;
+    width: auto;
+  }
+  .form-controls {
+    margin-top: 10px;
+  }
+  .radio-options {
+    display: flex;
+    flex-direction: column;
+    margin-left: 200px;
+  }
+  .radio-options label {
+    width: auto;
+    margin-bottom: 8px;
+    color: #ddd;
+  }
+  .conditional-field {
+    margin-left: 220px;
+    padding: 15px;
+    background: #2a2a2a;
+    border-left: 3px solid #666;
+    margin-bottom: 15px;
+    border-radius: 0 4px 4px 0;
+  }
+  .field-gold_percentage {
+    display: none;
+  }
+  input[type="text"],
+  input[type="number"],
+  select {
+    background-color: #333;
+    color: #fff;
+    border: 1px solid #555;
+    padding: 6px 8px;
+    border-radius: 4px;
+  }
+  input[type="checkbox"] {
+    accent-color: #4a90e2;
+    width: 16px;
+    height: 16px;
+  }
+  input[type="radio"] {
+    accent-color: #4a90e2;
+  }
+  .submit-row input[type="submit"] {
+    background: #4a90e2;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .submit-row input[type="submit"]:hover {
+    background: #3a80d2;
+  }
+  /* 모듈 스타일 개선 */
+  .module {
+    background-color: #222;
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  /* 브레드크럼 개선 */
+  .breadcrumbs {
+    background: #2a2a2a;
+    padding: 10px 15px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+  }
+  .breadcrumbs a {
+    color: #4a90e2;
+  }
+  h1 {
+    color: #fff;
+    border-bottom: 1px solid #444;
+    padding-bottom: 10px;
+  }
+  /* 도움말 텍스트 강조 */
+  p.help strong {
+    color: #ffcc66;
+  }
+  /* 오류 노트 강조 */
+  .errornote {
+    background-color: rgba(255, 76, 76, 0.2);
+    border: 1px solid #ff4c4c;
+    color: #ff6b6b;
+    padding: 10px 15px;
+    border-radius: 4px;
+  }
+</style>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // 골드 튜플 포함 체크박스 기능
+    const includeGoldCheckbox = document.getElementById('id_include_gold');
+    const goldPercentageField = document.querySelector('.field-gold_percentage');
+
+    function toggleGoldPercentage() {
+      if (includeGoldCheckbox.checked) {
+        goldPercentageField.style.display = 'block';
+      } else {
+        goldPercentageField.style.display = 'none';
+      }
+    }
+
+    // 초기 상태 설정
+    toggleGoldPercentage();
+
+    // 체크박스 변경 시 토글
+    includeGoldCheckbox.addEventListener('change', toggleGoldPercentage);
+  });
+</script>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+  &rsaquo; <a href="{% url 'admin:vad_survey_userwordtuple_changelist' %}">작업자 할당 관리</a>
+  &rsaquo; {% trans '작업자에게 튜플 할당' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  <h1>작업자에게 BWS 평가 튜플 할당</h1>
+
+  <!-- 통계 정보 -->
+  <div class="stats-container">
+    <div class="stats-box">
+      <div class="stats-title">사용 가능한 튜플</div>
+      <div class="stat-item">
+        <span>감정가 (Valence):</span>
+        <span>{{ tuple_stats.V }}개 (검증용: {{ tuple_stats.gold_V }}개)</span>
+      </div>
+      <div class="stat-item">
+        <span>각성도 (Arousal):</span>
+        <span>{{ tuple_stats.A }}개 (검증용: {{ tuple_stats.gold_A }}개)</span>
+      </div>
+      <div class="stat-item">
+        <span>지배성 (Dominance):</span>
+        <span>{{ tuple_stats.D }}개 (검증용: {{ tuple_stats.gold_D }}개)</span>
+      </div>
+    </div>
+
+    <div class="stats-box">
+      <div class="stats-title">작업자 정보</div>
+      <div class="stat-item">
+        <span>전체 작업자:</span>
+        <span>{{ user_stats.total }}명</span>
+      </div>
+      <div class="stat-item">
+        <span>활성 작업자:</span>
+        <span>{{ user_stats.active }}명</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="module">
+    <form action="" method="post">
+      {% csrf_token %}
+
+      {% if form.errors %}
+      <p class="errornote">
+        {% blocktrans count counter=form.errors.items|length %}Please correct the error below.{% plural %}Please correct the errors below.{% endblocktrans %}
+      </p>
+      {% endif %}
+
+      <fieldset class="module aligned">
+        {% for field in form %}
+        <div class="form-row{% if field.errors %} errors{% endif %} field-{{ field.name }}">
+          {% if field.name == 'users' %}
+            <div>
+              <label for="{{ field.id_for_label }}">{{ field.label }}:</label>
+              {% if field.errors %}{{ field.errors }}{% endif %}
+            </div>
+            <div class="users-list">
+              {{ field }}
+            </div>
+            {% if field.help_text %}<p class="help">{{ field.help_text }}</p>{% endif %}
+
+          {% elif field.name == 'dimension' or field.name == 'assign_method' %}
+            <label>{{ field.label }}:</label>
+            {% if field.errors %}{{ field.errors }}{% endif %}
+            <div class="radio-options">
+              {{ field }}
+            </div>
+            {% if field.help_text %}<p class="help">{{ field.help_text }}</p>{% endif %}
+
+          {% elif field.name == 'gold_percentage' %}
+            <div class="conditional-field">
+              <label for="{{ field.id_for_label }}">{{ field.label }}:</label>
+              {{ field }}
+              {% if field.errors %}{{ field.errors }}{% endif %}
+              {% if field.help_text %}<p class="help">{{ field.help_text }}</p>{% endif %}
+            </div>
+
+          {% else %}
+            <label for="{{ field.id_for_label }}">{{ field.label }}:</label>
+            {{ field }}
+            {% if field.errors %}{{ field.errors }}{% endif %}
+            {% if field.help_text %}<p class="help">{{ field.help_text }}</p>{% endif %}
+          {% endif %}
+        </div>
+        {% endfor %}
+      </fieldset>
+
+      <div class="submit-row">
+        <input type="submit" value="튜플 할당하기" class="default" />
+      </div>
+
+      <p class="help" style="margin-top:20px;">
+        <strong>참고:</strong><br>
+        - 작업자당 튜플 수는 실제로 할당 가능한 최대 수를 초과할 수 있습니다.<br>
+        - 이미 할당된 튜플은 동일한 작업자에게 중복 할당되지 않습니다.<br>
+        - 검증용 튜플을 포함하면 전체 할당량의 일정 비율로 검증용 튜플이 포함됩니다.
+      </p>
+    </form>
+  </div>
+</div>
+{% endblock %}
