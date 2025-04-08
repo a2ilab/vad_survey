@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+media
+
+# Virtual Environment
+venv/
+.env/
+
+# IDE 설정 (PyCharm)
+.idea/
+*.iml
+
+# VSCode 설정
+.vscode/
+
+# 운영체제 파일
+.DS_Store
+Thumbs.db
+
+# 기타
+.env
+*.env
