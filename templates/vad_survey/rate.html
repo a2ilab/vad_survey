@@ -19,28 +19,24 @@
         {% csrf_token %}
         <input type="hidden" name="tuple_id" value="{{ word_tuple.id }}">
 
-        <div class="text-sm text-gray-500 mb-4">
-            평가 중인 튜플: #{{ word_tuple.id }} ({{ dimension.name }} 차원)
-        </div>
-
         <div class="border-b pb-6">
             <h3 class="text-xl font-semibold mb-4">{{ dimension.name }} 평가</h3>
 
             <!-- 차원 설명 추가 -->
-            <p class="text-gray-600 mb-4">
-                {% if dimension.code == 'V' %}
-                <strong>Valence(정서가)</strong>: 긍정적인 감정(행복, 만족)부터 부정적인 감정(불행, 불만족)까지
-                {% elif dimension.code == 'A' %}
-                <strong>Arousal(각성도)</strong>: 흥분, 활성화 수준부터 평온, 졸음까지
-                {% elif dimension.code == 'D' %}
-                <strong>Dominance(지배력)</strong>: 통제, 영향력 있음부터 복종, 영향력 없음까지
-                {% endif %}
-            </p>
-
             <div class="space-y-6">
                 <div class="space-y-4">
-                    <label class="block text-sm font-medium text-gray-700">가장 높은 {{ dimension.name }}의 단어 선택:</label>
-                    <div class="grid grid-cols-2 gap-4">
+                    <label class="block text-sm font-medium text-gray-700">
+                        {% if dimension.code == 'V' %}
+                        아래 4개의 단어 중 '행복한', '기쁜', '긍정적인', '만족스러운', '흡족한', '기대되는'과 가장 관련된 단어는 무엇인가요?
+                        {% elif dimension.code == 'A' %}
+                        아래 4개의 단어 중 '긴장하는', '활기찬', '자극적인', '흥분된', '과민한', '깨어있는'과 가장 관련된 단어는 무엇인가요?
+                        {% elif dimension.code == 'D' %}
+                        가장 높은 Dominance의 단어 선택
+                        {% else %}
+                        가장 높은 {{ dimension.name }}의 단어 선택:
+                        {% endif %}
+                    </label>
+                    <div class="grid grid-cols-4 gap-4">
                         {% for word in words %}
                             <label class="flex items-center space-x-2">
                                 <input type="radio" name="best_word" value="{{ word.id }}" required
@@ -52,12 +48,22 @@
                 </div>
 
                 <div class="space-y-4">
-                    <label class="block text-sm font-medium text-gray-700">가장 낮은 {{ dimension.name }}의 단어 선택:</label>
-                    <div class="grid grid-cols-2 gap-4">
+                    <label class="block text-sm font-medium text-gray-700">
+                        {% if dimension.code == 'V' %}
+                        아래 4개의 단어 중 '불행한', '성내는', '부정적인', '불만스러운', '울적한', '절망적인'과 가장 관련된 단어는 무엇인가요?
+                        {% elif dimension.code == 'A' %}
+                        아래 4개의 단어 중 '긴장풀린', '수동적인', '이완된', '차분한', '느린', '둔한', '나른한'과 가장 관련된 단어는 무엇인가요?
+                        {% elif dimension.code == 'D' %}
+                        가장 낮은 지배력/통제력을 나타내는 단어 선택:
+                        {% else %}
+                        가장 낮은 {{ dimension.name }}의 단어 선택:
+                        {% endif %}
+                    </label>
+                    <div class="grid grid-cols-4 gap-4">
                         {% for word in words %}
                             <label class="flex items-center space-x-2">
                                 <input type="radio" name="worst_word" value="{{ word.id }}" required
-                                       class="dimension-select" data-type="worst">
+                                       class="dimension-select" data-type="best">
                                 <span>{{ word.text }}</span>
                             </label>
                         {% endfor %}
@@ -65,7 +71,6 @@
                 </div>
             </div>
         </div>
-
         <button type="submit" class="w-full py-2 px-4 bg-blue-500 text-white rounded hover:bg-blue-600">
             평가 제출
         </button>
