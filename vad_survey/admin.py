@@ -1,4 +1,5 @@
 # vad_survey/admin.py
+import csv
 from django import forms
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
@@ -6,6 +7,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.db.models import Q
+from django.http import HttpResponse
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.template.response import TemplateResponse
@@ -174,7 +176,9 @@ class TupleAssignmentForm(forms.Form):
 # 사용자-튜플 할당 관리자 페이지
 class UserWordTupleAdmin(admin.ModelAdmin):
     list_display = (
-    'id', 'user_link', 'tuple_link', 'dimension_display', 'assigned_at', 'completion_status', 'completion_time')
+        'id', 'user_link', 'tuple_link', 'tuple_words_display',
+        'dimension_display', 'assigned_at', 'completion_status', 'completion_time'
+    )
     change_list_template = 'admin/user_wordtuple_changelist.html'
     list_filter = ('word_tuple__dimension', CompletionStatusFilter, 'assigned_at')
     search_fields = ('user__username', 'word_tuple__id')
@@ -182,6 +186,11 @@ class UserWordTupleAdmin(admin.ModelAdmin):
     list_select_related = ('user', 'word_tuple')
     actions = ['mark_as_completed', 'mark_as_not_completed', 'reassign_tuples']
     list_per_page = 50
+
+    def tuple_words_display(self, obj):
+        return ", ".join([word.text for word in obj.word_tuple.words.all()])
+
+    tuple_words_display.short_description = '단어 목록'
 
     def get_urls(self):
         urls = super().get_urls()
@@ -503,10 +512,62 @@ def assignment_dashboard(request):
 
     return render(request, 'admin/assignment_dashboard.html', context)
 
+#Rating관리
+class RatingAdmin(admin.ModelAdmin):
+    list_display = (
+        'id', 'user', 'get_word_tuple_display', 'display_tuple_words',
+        'dimension', 'get_best_word_text', 'get_worst_word_text', 'created_at'
+    )
+    list_filter = ('dimension', 'created_at')
+    search_fields = ('user__username', 'word_tuple__id', 'best_word__text', 'worst_word__text')
+    actions = ['export_ratings_as_csv']
+
+    def get_word_tuple_display(self, obj):
+        return f"Tuple {obj.word_tuple.id}"
+
+    get_word_tuple_display.short_description = "Word Tuple"
+
+    def display_tuple_words(self, obj):
+        return ", ".join([word.text for word in obj.word_tuple.words.all()])
+    display_tuple_words.short_description = "Tuple 단어 목록"
+
+    def get_best_word_text(self, obj):
+        return obj.best_word.text if obj.best_word else "-"
+    get_best_word_text.short_description = "Best Word"
+
+    def get_worst_word_text(self, obj):
+        return obj.worst_word.text if obj.worst_word else "-"
+    get_worst_word_text.short_description = "Worst Word"
+
+    @admin.action(description="선택한 평가 결과를 CSV로 내보내기")
+    def export_ratings_as_csv(self, request, queryset):
+        import csv
+        from django.http import HttpResponse
+
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="ratings.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow(['ID', 'User', 'Tuple ID', 'Tuple Words', 'Dimension', 'Best Word', 'Worst Word', 'Created At'])
+
+        for rating in queryset.select_related('user', 'word_tuple', 'best_word', 'worst_word'):
+            words = ", ".join([word.text for word in rating.word_tuple.words.all()])
+            writer.writerow([
+                rating.id,
+                rating.user.username if rating.user else 'Anonymous',
+                rating.word_tuple.id,
+                words,
+                rating.get_dimension_display(),
+                rating.best_word.text if rating.best_word else '',
+                rating.worst_word.text if rating.worst_word else '',
+                rating.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            ])
+
+        return response
 
 # 기타 모델 관리자 등록
 admin.site.register(Word, WordAdmin)
 admin.site.register(WordTuple, WordTupleAdmin)
-admin.site.register(Rating)
+admin.site.register(Rating, RatingAdmin)
 admin.site.register(UserProfile)
 admin.site.register(UserWordTuple, UserWordTupleAdmin)
