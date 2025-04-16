@@ -11,6 +11,9 @@ class Word(models.Model):
     total_ratings = models.IntegerField(default=0)  # 평가 횟수 트래킹
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def __str__(self):
+        return self.text
+
 
 class Rating(models.Model):
     DIMENSIONS = (
@@ -175,7 +178,8 @@ class WordTuple(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Tuple {self.id}"
+        word_list = [w.text for w in self.words.all()]
+        return f"Tuple {self.id}: " + ", ".join(word_list)
 
     def get_missing_dimensions(self, user):
         rated_dimensions = set(
@@ -219,22 +223,22 @@ class UserProfile(models.Model):
     is_active = models.BooleanField(default=True)  # 80% 정확도 기준
     last_rating_at = models.DateTimeField(null=True, blank=True)
 
-    def update_gold_accuracy(self):
-        """Gold question 정확도 업데이트"""
-        gold_ratings = Rating.objects.filter(
-            user=self.user,
-            word_tuple__is_gold=True
-        )
-        correct_ratings = gold_ratings.filter(
-            best_word=F('word_tuple__gold_best_word'),
-            worst_word=F('word_tuple__gold_worst_word')
-        )
+    def update_gold_accuracy(self, is_correct: bool):
+        """새로운 gold 평가 결과를 누적하여 정확도 계산"""
+        self.total_ratings += 1
 
-        if gold_ratings.count() > 0:
-            self.gold_accuracy = (correct_ratings.count() / gold_ratings.count()) * 100
-            if self.gold_accuracy < 80:
-                self.is_active = False
-            self.save()
+        # 현재 정확도는 백분율이므로 백분율 → 정수 개수로 환산
+        correct_so_far = round(self.gold_accuracy * (self.total_ratings - 1) / 100)
+
+        if is_correct:
+            correct_so_far += 1
+
+        # 다시 백분율로 계산
+        self.gold_accuracy = (correct_so_far / self.total_ratings) * 100
+
+        # 정확도가 80% 미만이면 비활성화
+        self.is_active = self.gold_accuracy >= 80
+        self.save()
 
 class UserWordTuple(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -253,4 +257,5 @@ class UserWordTuple(models.Model):
         return len(set(rated_dimensions)) == len(Rating.DIMENSIONS)
 
     def __str__(self):
-        return f"{self.user.username}'s tuple {self.word_tuple.id}"
+        word_list = ", ".join([w.text for w in self.word_tuple.words.all()])
+        return f"{self.user.username} - [{word_list}]"
