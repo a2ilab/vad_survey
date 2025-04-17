@@ -1,7 +1,9 @@
 {% extends 'vad_survey/base.html' %}
 
+<!--평가하는곳-->
+
 {% block content %}
-<div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6">
+<div class="max-w-5xl mx-auto bg-white rounded-lg shadow-md p-6">
     <h2 class="text-2xl font-bold mb-6">단어 평가 (남은 평가: {{ ratings_left }})</h2>
 
     {% if messages %}
@@ -20,12 +22,12 @@
         <input type="hidden" name="tuple_id" value="{{ word_tuple.id }}">
 
         <div class="border-b pb-6">
-            <h3 class="text-xl font-semibold mb-4">{{ dimension.name }} 평가</h3>
+            <h3 class="text-xl font-semibold mb-4"> </h3>
 
             <!-- 차원 설명 추가 -->
             <div class="space-y-6">
                 <div class="space-y-4">
-                    <label class="block text-sm font-medium text-gray-700">
+                    <label class="block text-lg font-medium text-gray-700">
                         {% if dimension.code == 'V' %}
                         아래 4개의 단어 중 '행복한', '기쁜', '긍정적인', '만족스러운', '흡족한', '기대되는'과 가장 관련된 단어는 무엇인가요?
                         {% elif dimension.code == 'A' %}
@@ -38,7 +40,7 @@
                     </label>
                     <div class="grid grid-cols-4 gap-4">
                         {% for word in words %}
-                            <label class="flex items-center space-x-2">
+                            <label class="flex text-xl items-center space-x-2">
                                 <input type="radio" name="best_word" value="{{ word.id }}" required
                                        class="dimension-select" data-type="best">
                                 <span>{{ word.text }}</span>
@@ -48,7 +50,7 @@
                 </div>
 
                 <div class="space-y-4">
-                    <label class="block text-sm font-medium text-gray-700">
+                    <label class="block text-lg font-medium text-gray-700">
                         {% if dimension.code == 'V' %}
                         아래 4개의 단어 중 '불행한', '성내는', '부정적인', '불만스러운', '울적한', '절망적인'과 가장 관련된 단어는 무엇인가요?
                         {% elif dimension.code == 'A' %}
@@ -61,7 +63,7 @@
                     </label>
                     <div class="grid grid-cols-4 gap-4">
                         {% for word in words %}
-                            <label class="flex items-center space-x-2">
+                            <label class="flex text-xl items-center space-x-2">
                                 <input type="radio" name="worst_word" value="{{ word.id }}" required
                                        class="dimension-select" data-type="best">
                                 <span>{{ word.text }}</span>
