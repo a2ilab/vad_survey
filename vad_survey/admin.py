@@ -551,6 +551,8 @@ class RatingAdmin(admin.ModelAdmin):
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="ratings.csv"'
 
+        response.write('\ufeff')
+
         writer = csv.writer(response)
         writer.writerow(['ID', 'User', 'Tuple ID', 'Tuple Words', 'Dimension', 'Best Word', 'Worst Word', 'Created At'])
 
