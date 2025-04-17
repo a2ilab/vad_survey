@@ -108,8 +108,19 @@ class WordTupleAdmin(admin.ModelAdmin):
 
     def display_words(self, obj):
         return ", ".join([word.text for word in obj.words.all()])
-
     display_words.short_description = "단어"
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # gold_best_word나 gold_worst_word 선택 시 해당 tuple에 있는 단어만 보여주기
+        if db_field.name in ['gold_best_word', 'gold_worst_word']:
+            try:
+                object_id = request.resolver_match.kwargs.get('object_id')
+                if object_id:
+                    word_tuple = WordTuple.objects.get(pk=object_id)
+                    kwargs["queryset"] = word_tuple.words.all()
+            except WordTuple.DoesNotExist:
+                pass
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 # 사용자-튜플 할당 필터
@@ -564,6 +575,17 @@ class RatingAdmin(admin.ModelAdmin):
             ])
 
         return response
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name in ['best_word', 'worst_word']:
+            try:
+                object_id = request.resolver_match.kwargs.get('object_id')
+                if object_id:
+                    from .models import Rating  # 안전하게 import
+                    rating = Rating.objects.get(pk=object_id)
+                    kwargs["queryset"] = rating.word_tuple.words.all()
+            except:
+                pass
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 # 기타 모델 관리자 등록
 admin.site.register(Word, WordAdmin)
