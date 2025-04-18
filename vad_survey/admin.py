@@ -33,9 +33,11 @@ class WordResource(resources.ModelResource):
 class WordAdmin(ImportExportModelAdmin):
     resource_class = WordResource
     list_display = ('text', 'valence_score', 'arousal_score', 'dominance_score', 'total_ratings')
+    list_filter = ('POS', )
     search_fields = ('text',)
     actions = ['generate_bws_tuples']
     change_list_template = 'admin/word_changelist.html'
+    list_max_show_all = 100000
 
     def get_urls(self):
         urls = super().get_urls()
