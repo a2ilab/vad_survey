@@ -45,8 +45,8 @@ class Command(BaseCommand):
         )
 
         # 데이터베이스에서 단어 가져오기
-        words = list(words_qs) #수정
-        if len(words) < items_per_tuple: #수정
+        words = list(words_qs)
+        if len(words) < items_per_tuple:
             self.stderr.write("단어 수가 tuple 크기보다 적습니다.")
             return
 
