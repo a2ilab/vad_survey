@@ -26,12 +26,13 @@ class WordResource(resources.ModelResource):
     class Meta:
         model = Word
         import_id_fields = ['text']
-        fields = ('text', 'POS','valence_score', 'arousal_score', 'dominance_score')
+        fields = ('text', 'valence_score', 'arousal_score', 'dominance_score')
+
 
 # Word 모델 관리자 페이지
 class WordAdmin(ImportExportModelAdmin):
     resource_class = WordResource
-    list_display = ('text', 'POS','valence_score', 'arousal_score', 'dominance_score', 'total_ratings')
+    list_display = ('text', 'valence_score', 'arousal_score', 'dominance_score', 'total_ratings')
     list_filter = ('POS', )
     search_fields = ('text',)
     actions = ['generate_bws_tuples']
