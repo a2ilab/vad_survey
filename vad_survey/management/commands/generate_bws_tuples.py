@@ -20,9 +20,9 @@ class Command(BaseCommand):
                             help='Dimension for tuples (V=Valence, A=Arousal, D=Dominance, default: V)')
         parser.add_argument('--random-seed', type=int, default=1234,
                             help='Random seed for reproducibility (default: 1234)')
-        parser.add_argument('--word-ids', type=str, default=None, help='Comma‑separated list of Word primary‑key IDs to include') # 수정
+        parser.add_argument('--word-ids', type=str, default=None, help='Comma‑separated list of Word primary‑key IDs to include')
     def handle(self, *args, **options):
-        word_ids_opt = options.get('word_ids') #수정
+        word_ids_opt = options.get('word_ids')
         if word_ids_opt:
             id_list = [int(pk) for pk in word_ids_opt.split(',') if pk]
             words_qs = Word.objects.filter(id__in=id_list)
