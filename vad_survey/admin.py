@@ -16,10 +16,10 @@ from django.utils.html import format_html
 from django.utils.timezone import timedelta
 from import_export import resources
 from import_export.admin import ImportExportModelAdmin
-
+from django.contrib import messages
 from .models import UserWordTuple
 from .models import Word, WordTuple, Rating, UserProfile
-
+from django.db import connection
 
 # Word 모델용 리소스 클래스
 class WordResource(resources.ModelResource):
@@ -109,11 +109,80 @@ class WordTupleAdmin(admin.ModelAdmin):
     list_filter = ('dimension', 'is_gold', 'created_at')
     search_fields = ('words__text',)
     list_max_show_all = 100000
+    actions = ['delete_selected_wordtuples', 'delete_all_wordtuples']
 
     def display_words(self, obj):
         return ", ".join([word.text for word in obj.words.all()])
 
     display_words.short_description = "단어"
+
+    @admin.action(description="선택된 워드 튜플 삭제")
+    def delete_selected_wordtuples(self, request, queryset):
+        from django.db import transaction
+
+        with transaction.atomic():
+            # 선택된 튜플들의 ID 목록
+            selected_tuple_ids = list(queryset.values_list('id', flat=True))
+
+            # 1. 관련 UserWordTuple 삭제
+            from .models import UserWordTuple
+            user_tuples_deleted = UserWordTuple.objects.filter(word_tuple__in=selected_tuple_ids).delete()[0]
+
+            # 2. 관련 Rating 삭제
+            from .models import Rating
+            ratings_deleted = Rating.objects.filter(word_tuple__in=selected_tuple_ids).delete()[0]
+
+            # 3. 선택된 WordTuple 삭제
+            tuples_deleted = queryset.count()
+            queryset.delete()
+
+            # 4. 테이블에 남은 레코드가 없으면 SQLite 시퀀스 재설정
+            if WordTuple.objects.count() == 0:
+                with connection.cursor() as cursor:
+                    # SQLite 시퀀스 초기화
+                    cursor.execute("DELETE FROM sqlite_sequence WHERE name='vad_survey_wordtuple';")
+                    # 관련 테이블도 초기화
+                    cursor.execute("DELETE FROM sqlite_sequence WHERE name='vad_survey_userwordtuple';")
+                    cursor.execute("DELETE FROM sqlite_sequence WHERE name='vad_survey_rating';")
+                    # M2M 관계 테이블도 초기화 (WordTuple_words)
+                    cursor.execute("DELETE FROM sqlite_sequence WHERE name='vad_survey_wordtuple_words';")
+
+        self.message_user(
+            request,
+            f"선택한 {tuples_deleted}개의 워드 튜플이 삭제되었습니다. "
+            f"관련된 {user_tuples_deleted} 작업자 할당과 {ratings_deleted} 평가 기록도 함께 삭제되었습니다."
+        )
+
+    @admin.action(description="모든 WordTuple 삭제")
+    def delete_all_wordtuples(self, request, queryset):
+        from django.db import transaction
+
+        with transaction.atomic():
+            # 1. 관련 UserWordTuple 삭제
+            from .models import UserWordTuple
+            user_tuples_deleted = UserWordTuple.objects.all().delete()[0]
+
+            # 2. 관련 Rating 삭제
+            from .models import Rating
+            ratings_deleted = Rating.objects.all().delete()[0]
+
+            # 3. 모든 WordTuple 삭제
+            tuples_deleted = WordTuple.objects.all().delete()[0]
+
+            # 4. SQLite 시퀀스 재설정 (모든 관련 테이블)
+            with connection.cursor() as cursor:
+                # 주요 테이블 시퀀스 초기화
+                cursor.execute("DELETE FROM sqlite_sequence WHERE name='vad_survey_wordtuple';")
+                cursor.execute("DELETE FROM sqlite_sequence WHERE name='vad_survey_userwordtuple';")
+                cursor.execute("DELETE FROM sqlite_sequence WHERE name='vad_survey_rating';")
+                # M2M 관계 테이블도 초기화 (WordTuple_words)
+                cursor.execute("DELETE FROM sqlite_sequence WHERE name='vad_survey_wordtuple_words';")
+
+        self.message_user(
+            request,
+            f"모든 워드 튜플({tuples_deleted})이 삭제되었습니다. "
+            f"관련된 {user_tuples_deleted} 작업자 할당과 {ratings_deleted} 평가 기록도 함께 삭제되었습니다."
+        )
 
 
 # 사용자-튜플 할당 필터
@@ -569,9 +638,38 @@ class RatingAdmin(admin.ModelAdmin):
 
         return response
 
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ('get_sona_id', 'gender', 'age', 'gold_accuracy', 'total_ratings', 'is_active', 'last_rating_at')
+    list_filter = ('gender', 'is_active')
+    search_fields = ('user__username',)
+
+    readonly_fields = (
+        'get_sona_id', 'gender', 'age', 'gold_accuracy', 'total_ratings', 'is_active', 'last_rating_at',
+    )
+
+    @admin.display(description='소나 ID')
+    def get_sona_id(self, obj):
+        return obj.user.username
+
+    def get_fields(self, request, obj=None):
+        return [
+            'get_sona_id',
+            'gender',
+            'age',
+            'gold_accuracy',
+            'total_ratings',
+            'is_active',
+            'last_rating_at',
+        ]
+
+def delete_model(self, request, obj):
+    messages.success(request, "연결된 사용자 계정도 함께 삭제되었습니다.")
+    super().delete_model(request, obj)
+
 # 기타 모델 관리자 등록
 admin.site.register(Word, WordAdmin)
 admin.site.register(WordTuple, WordTupleAdmin)
 admin.site.register(Rating, RatingAdmin)
-admin.site.register(UserProfile)
 admin.site.register(UserWordTuple, UserWordTupleAdmin)

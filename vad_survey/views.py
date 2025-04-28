@@ -6,7 +6,6 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.shortcuts import render, redirect
 from django.utils import timezone
-
 from .form import SignUpForm
 from .models import UserProfile
 from .models import WordTuple, Rating, UserWordTuple  # UserWordTuple 추가
@@ -182,22 +181,37 @@ def rate_words(request):
         'ratings_left': UserWordTuple.objects.filter(
             user=request.user,
             completed=False
-        ).count()
-    })
+        ).count(),
+        'total_ratings' : UserWordTuple.objects.filter(user=request.user).count(),
+        'completed_ratings' : UserWordTuple.objects.filter(
+            user=request.user,
+            completed=True
+        ).count(),
+        'progress_rate' : UserWordTuple.objects.filter(
+            user=request.user,
+            completed=True
+        ).count() /  UserWordTuple.objects.filter(user=request.user).count() * 100
+    }) # 수정
 
 def signup(request):
     if request.method == 'POST':
         form = SignUpForm(request.POST)
         if form.is_valid():
-            user = form.save()
+            user = form.save(commit=False)
+            user.username = str(form.cleaned_data.get('username'))  # 숫자 입력 대비 문자열로 변환
+            user.save()
 
-            # 프로필 생성
-            UserProfile.objects.create(
-                user=user,
-                age=form.cleaned_data.get('age'),
-                gender=form.cleaned_data.get('gender'),
-                personality_type=form.cleaned_data.get('personality_type')
-            )
+            # ⭐ UserProfile 중복 체크 후 생성
+            if not UserProfile.objects.filter(user=user).exists():
+                UserProfile.objects.create(
+                    user=user,
+                    sona_id=user.username,  # 소다 ID를 따로 지정
+                    age=form.cleaned_data.get('age'),
+                    gender=form.cleaned_data.get('gender')
+                )
+            else:
+                messages.error(request, "이미 해당 유저 프로필이 존재합니다.")
+                return render(request, 'registration/signup.html', {'form': form})
 
             login(request, user)
             messages.success(request, '회원가입이 완료되었습니다. 관리자가 평가 작업을 할당할 때까지 기다려주세요.')

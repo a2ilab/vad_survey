@@ -2,6 +2,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+from django.core.validators import MinValueValidator
 
 class Word(models.Model):
     text = models.CharField(max_length=100)
@@ -216,13 +217,19 @@ class WordTuple(models.Model):
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    age = models.IntegerField()
-    gender = models.CharField(max_length=20)
-    personality_type = models.CharField(max_length=50)
-    gold_accuracy = models.FloatField(default=0.0)  # Gold question 정확도
-    total_ratings = models.IntegerField(default=0)  # 총 평가 수
-    is_active = models.BooleanField(default=True)  # 80% 정확도 기준
+    sona_id = models.PositiveIntegerField(unique=True, default=0)
+    gender = models.CharField(max_length=10, choices=[
+        ('M', '남성'),
+        ('F', '여성'),
+    ])
+    age = models.PositiveIntegerField(default=0)
+    gold_accuracy = models.FloatField(default=0.0)
+    total_ratings = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
     last_rating_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.user.username}"
 
     def update_gold_accuracy(self, is_correct: bool):
         """새로운 gold 평가 결과를 누적하여 정확도 계산"""
@@ -240,6 +247,11 @@ class UserProfile(models.Model):
         # 정확도가 80% 미만이면 비활성화
         self.is_active = self.gold_accuracy >= 80
         self.save()
+
+    def delete(self, *args, **kwargs):
+        self.user.delete()  # 연결된 User도 같이 삭제
+        super().delete(*args, **kwargs)
+
 
 class UserWordTuple(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)

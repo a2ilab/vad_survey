@@ -4,12 +4,12 @@
 
 {% block content %}
 <div class="max-w-5xl mx-auto bg-white rounded-lg shadow-md p-6">
-    <h2 class="text-2xl font-bold mb-6">단어 평가 (남은 평가: {{ ratings_left }})</h2>
+    <h2 class="text-2xl font-bold mb-6">전체 평가 개수 : {{ total_ratings }} <br> 진행률 : {{ progress_rate|floatformat:2 }} %</h2> <!-- 수정 -->
 
     {% if messages %}
     <div class="mb-6">
         {% for message in messages %}
-        <div class="p-4 mb-4 {% if message.tags == 'success' %}bg-green-100 text-green-700{% elif message.tags == 'error' %}bg-red-100 text-red-700{% elif message.tags == 'warning' %}bg-yellow-100 text-yellow-700{% else %}bg-blue-100 text-blue-700{% endif %} rounded">
+        <div class="p-4 mb-4 {% if message.tags == 'success' %}bg-green-100 text-green-700{% elif message.tags == 'error' %}bg-red-100 text-red-700{% elif message.tags == 'warning' %}bg-yellow-100 text-yellow-700{% else %}bg-blue-100 text-blue-700{% endif %} rounded"> <!-- 수정 -->
             {{ message }}
         </div>
         {% endfor %}
@@ -24,17 +24,17 @@
         <div class="border-b pb-6">
             <h3 class="text-xl font-semibold mb-4"> </h3>
 
-            <!-- 차원 설명 추가 -->
+            <!-- 차원 설명 추가 --> <!-- 수정 -->
             <div class="space-y-6">
                 <div class="space-y-4">
                     <label class="block text-lg font-medium text-gray-700">
                         {% if dimension.code == 'V' %}
                         아래 4개의 단어 중
-                        <span class="font-bold">'행복한', '기쁜', '긍정적인', '만족스러운', '흡족한', '기대되는'</span>
+                        <span class="font-bold text-red-500">'행복한', '기쁜', '긍정적인', '만족스러운', '흡족한', '기대되는'</span>
                         과 가장 관련된 단어는 무엇인가요?
                         {% elif dimension.code == 'A' %}
                         아래 4개의 단어 중
-                        <span class="font-bold">'긴장하는', '활기찬', '자극적인', '흥분된', '과민한', '깨어있는'</span>
+                        <span class="font-bold text-red-500">'긴장하는', '활기찬', '자극적인', '흥분된', '과민한', '깨어있는'</span>
                         과 가장 관련된 단어는 무엇인가요?
                         {% elif dimension.code == 'D' %}
                         가장 높은 Dominance의 단어 선택
@@ -57,11 +57,11 @@
                     <label class="block text-lg font-medium text-gray-700">
                         {% if dimension.code == 'V' %}
                         아래 4개의 단어 중 
-                        <span class="font-bold">'불행한', '성내는', '부정적인', '불만스러운', '울적한', '절망적인'</span>
+                        <span class="font-bold text-red-500">'불행한', '성내는', '부정적인', '불만스러운', '울적한', '절망적인'</span>
                         과 가장 관련된 단어는 무엇인가요?
                         {% elif dimension.code == 'A' %}
                         아래 4개의 단어 중 
-                        <span class="font-bold">'긴장풀린', '수동적인', '이완된', '차분한', '느린', '둔한', '나른한'</span>
+                        <span class="font-bold text-red-500">'긴장풀린', '수동적인', '이완된', '차분한', '느린', '둔한', '나른한'</span>
                         과 가장 관련된 단어는 무엇인가요?
                         {% elif dimension.code == 'D' %}
                         가장 낮은 지배력/통제력을 나타내는 단어 선택:
