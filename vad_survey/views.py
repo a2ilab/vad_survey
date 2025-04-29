@@ -12,6 +12,62 @@ from .models import WordTuple, Rating, UserWordTuple  # UserWordTuple 추가
 
 
 @login_required
+# 안내 페이지 추가, 수정
+def intro(request):
+    """
+    실험 시작 전 간략 안내 페이지를 보여주는 뷰.
+    """
+# 1. 세션에 저장된 현재 튜플 ID 확인
+    tuple_id = request.session.get('current_rating_tuple_id')
+    user_tuple = None
+
+    if tuple_id:
+        try:
+            user_tuple = UserWordTuple.objects.get(
+                id=tuple_id,
+                user=request.user,
+                completed=False
+            )
+        except UserWordTuple.DoesNotExist:
+            user_tuple = None
+            del request.session['current_rating_tuple_id']
+
+    # 2. 세션에 튜플이 없으면, rate_words와 동일하게 선택
+    if not user_tuple:
+        # 할당된 미완료 튜플 리스트
+        user_tuples = UserWordTuple.objects.filter(
+            user=request.user,
+            completed=False
+        ).select_related('word_tuple')
+
+        # 평가 가능한 튜플만 추리기
+        available = [
+            ut for ut in user_tuples
+            if ut.word_tuple.dimension
+            and not Rating.objects.filter(
+                user=request.user,
+                word_tuple=ut.word_tuple,
+                dimension=ut.word_tuple.dimension
+            ).exists()
+        ]
+
+        if not available:
+            messages.warning(request, '현재 할당된 평가 작업이 없습니다.')
+            return redirect('vad_survey:rate_words')
+
+        # 랜덤 선택 및 세션 저장
+        user_tuple = random.choice(available)
+        request.session['current_rating_tuple_id'] = user_tuple.id
+
+    # 3. dimension 추출
+    word_tuple = user_tuple.word_tuple
+    code = word_tuple.dimension
+    name = dict(Rating.DIMENSIONS).get(code, '')
+
+    return render(request, 'vad_survey/intro.html', {
+        'dimension': {'code': code, 'name': name}
+    })
+
 def rate_words(request):
     """특정 차원(V, A, D)의 단어 튜플을 평가하는 뷰"""
 
@@ -215,7 +271,7 @@ def signup(request):
 
             login(request, user)
             messages.success(request, '회원가입이 완료되었습니다. 관리자가 평가 작업을 할당할 때까지 기다려주세요.')
-            return redirect('vad_survey:rate_words')
+            return redirect('vad_survey:intro') # 수정
     else:
         form = SignUpForm()
     return render(request, 'registration/signup.html', {'form': form})

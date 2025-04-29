@@ -1,0 +1,33 @@
+{% extends 'vad_survey/base.html' %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto bg-white rounded-lg shadow-md p-6">
+    
+    <div class="text-2xl font-bold mb-6">실험에 참여해주셔서 감사합니다.</div>
+    <div class="mt-4 text-m">실험이 진행되면 다음과 같은 2개의 질문과 함께 4개의 단어로 이루어진 단어 목록이 나타납니다.</div>
+    <div class="border border-gray-200 p-4 rounded mt-4">
+        {% if dimension.code == 'V' %}
+        <p>아래 4개의 단어 중
+        <span class="font-bold text-red-500">'행복한', '기쁜', '긍정적인', '만족스러운', '흡족한', '기대되는'</span>과 가장 관련된 단어는 무엇인가요?<br><br>
+        아래 4개의 단어 중 
+        <span class="font-bold text-red-500">'불행한', '성내는', '부정적인', '불만스러운', '울적한', '절망적인'</span>과 가장 관련된 단어는 무엇인가요?
+        {% elif dimension.code == 'A' %}
+        아래 4개의 단어 중
+        <span class="font-bold text-red-500">'긴장하는', '활기찬', '자극적인', '흥분된', '과민한', '깨어있는'</span>과 가장 관련된 단어는 무엇인가요?<br><br>
+        <br>아래 4개의 단어 중 
+        <span class="font-bold text-red-500">'긴장풀린', '수동적인', '이완된', '차분한', '느린', '둔한', '나른한'</span>과 가장 관련된 단어는 무엇인가요?
+        {% endif %}
+    </div>
+    <div class="mt-4 text-m">여러분의 과제는 제시된 4개의 단어 중 위 질문에 붉은색으로 표시된 형용사와 가장 일치하는 단어를 선택하는 것입니다.<br>
+        실험은 총 80개의 페이지로 구성되어 있습니다.
+    <br><br>
+    준비가 되셨다면 "평가 시작하기"를 눌러주세요.
+    </div>
+    <div class="mt-6 text-center">
+        <a href="{% url 'vad_survey:rate_words' %}"
+           class="inline-block py-3 px-6 bg-blue-500 text-white font-medium rounded hover:bg-blue-600">
+            평가 시작하기
+        </a>
+    </div>
+</div>
+{% endblock %}

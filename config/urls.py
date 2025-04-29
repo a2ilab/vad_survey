@@ -17,11 +17,17 @@ Including another URLconf
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import path, include
+from django.views.generic import RedirectView # 수정, 추가
 
 from vad_survey import views as vad_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path(
+        '',
+        RedirectView.as_view(pattern_name='vad_survey:intro', permanent=False),
+        name='root-redirect'
+    ), # 수정
     path('', include('vad_survey.urls')),
     path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
