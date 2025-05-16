@@ -5,17 +5,27 @@ from django.utils import timezone
 from django.core.validators import MinValueValidator
 
 class Word(models.Model):
+    DIMENSIONS = (
+        ('V', 'Valence'),
+        ('A', 'Arousal'),
+        ('D', 'Dominance')
+    )
+
     text = models.CharField(max_length=100)
     POS = models.CharField(max_length=100)
-    valence_score = models.FloatField(null=True, blank=True)  # VAD 점수 필드 추가
+    dimension = models.CharField(
+        max_length=1,
+        choices=[('V', 'Valence'), ('A', 'Arousal'), ('D', 'Dominance')],
+        null=True, blank=True
+    )
+    valence_score = models.FloatField(null=True, blank=True)
     arousal_score = models.FloatField(null=True, blank=True)
     dominance_score = models.FloatField(null=True, blank=True)
-    total_ratings = models.IntegerField(default=0)  # 평가 횟수 트래킹
+    total_ratings = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.text
-
 
 class Rating(models.Model):
     DIMENSIONS = (

@@ -1,0 +1,15 @@
+{% extends 'vad_survey/base.html' %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto bg-white rounded-lg shadow-md p-6">
+    
+    <div class="text-xl text-center font-bold mb-6">그럼 조사를 시작하겠습니다.<br><br> 아래의 조사 시작하기 버튼을 눌러주세요.</div>
+    <br><br><br><br> 
+    <div class="mt-6 text-center">
+        <a href="{% url 'vad_survey:rate_words' %}"
+           class="inline-block py-3 px-6 bg-blue-500 text-white font-medium rounded hover:bg-blue-600">
+            조사 시작하기
+        </a>
+    </div>
+
+{% endblock %}

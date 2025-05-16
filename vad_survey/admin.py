@@ -32,119 +32,154 @@ class WordResource(resources.ModelResource):
 # Word 모델 관리자 페이지
 class WordAdmin(ImportExportModelAdmin):
     resource_class = WordResource
-    list_display = ('text', 'POS','valence_score', 'arousal_score', 'dominance_score', 'total_ratings')
-    list_filter = ('POS', )
+    list_display = ('text', 'POS', 'valence_score', 'arousal_score', 'dominance_score', 'total_ratings')
+    list_filter = ('POS',)
     search_fields = ('text',)
-    actions = ['generate_bws_tuples']
+    actions = [
+        'generate_valence_tuples',
+        'generate_arousal_tuples',
+        'generate_dominance_tuples',
+    ]
     change_list_template = 'admin/word_changelist.html'
     list_max_show_all = 100000
 
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
-            path('generate_bws_tuples/',
+            path('generate-bws-tuples/',
                  self.admin_site.admin_view(self.generate_bws_tuples_view),
                  name='vad_survey_word_generate_bws_tuples'),
         ]
         return custom_urls + urls
 
     def generate_bws_tuples_view(self, request):
-        # GET 요청 시 설정 폼 표시
-        if request.method == 'GET':
-            context = {
-                'title': 'Generate BWS Tuples',
-                'app_label': 'vad_survey',
-                'opts': self.model._meta,
-                'has_view_permission': self.has_view_permission(request),
-            }
-            return TemplateResponse(request, 'admin/generate_bws_tuples.html', context)
+        if request.method == 'POST':
+            word_ids = request.POST.get('word_ids', '')
+            if word_ids:
+                call_command('generate_bws_tuples', word_ids=word_ids)
+                self.message_user(request, f"BWS 튜플 생성 완료")
+            else:
+                self.message_user(request, "단어 ID가 입력되지 않았습니다.", level='ERROR')
+        return HttpResponseRedirect("../")
 
-        # POST 요청 시 튜플 생성 실행
-        elif request.method == 'POST':
-            items_per_tuple = int(request.POST.get('items_per_tuple', 4))
-            scaling_factor = float(request.POST.get('scaling_factor', 2.0))
-            iterations = int(request.POST.get('iterations', 100))
-            dimension = request.POST.get('dimension', 'V')
+    def delete_queryset(self, request, queryset):
+        for word in queryset:
+            related_ratings = Rating.objects.filter(Q(best_word=word) | Q(worst_word=word))
+            user_ids = related_ratings.values_list('user_id', flat=True)
 
-            # 관리 명령어 호출
-            call_command(
-                'generate_bws_tuples',
-                items_per_tuple=items_per_tuple,
-                scaling_factor=scaling_factor,
-                iterations=iterations,
-                dimension=dimension
-            )
+            # 평가 삭제
+            related_ratings.delete()
 
-            self.message_user(request, f"BWS 튜플 생성이 완료되었습니다. (차원: {dimension})")
-            return HttpResponseRedirect("../")
+            # 단어 평가 수 초기화
+            word.total_ratings = 0
+            word.save()
 
-    @admin.action(description="선택한 단어로 BWS 튜플 생성")
-    def generate_bws_tuples(self, request, queryset):
-        """선택된 단어들로 BWS 튜플 생성 (액션)"""
-        # 모든 단어 대신 선택된 단어만 사용
-        if not queryset.exists():
-            self.message_user(request, "튜플 생성을 위해 단어를 선택해주세요")
-            return
+            # 사용자 프로필 업데이트
+            for user_id in set(user_ids):
+                try:
+                    profile = UserProfile.objects.get(user_id=user_id)
+                    profile.total_ratings = Rating.objects.filter(user_id=user_id).count()
+                    profile.save()
+                except UserProfile.DoesNotExist:
+                    continue
 
-        # 간단한 버전 - 기본 설정으로 튜플 생성
-        words = list(queryset.values_list('text', flat=True))
-        word_ids = list(queryset.values_list('id', flat=True))
-        # 기본 차원에 대해 튜플 생성
-        dimension = 'V'
+        super().delete_queryset(request, queryset)
 
+    @admin.action(description="선택한 단어로 Valence 튜플 생성")
+    def generate_valence_tuples(self, request, queryset):
         from django.core.management import call_command
-        call_command('generate_bws_tuples', dimension=dimension, word_ids=",".join(map(str, word_ids)))
+        valence_ids = queryset.values_list('id', flat=True)
+        if valence_ids:
+            call_command('generate_bws_tuples', word_ids=",".join(map(str, valence_ids)), dimension='V')
+            self.message_user(request, f"Valence 튜플 생성 완료 ({len(valence_ids)}개 단어)")
+        else:
+            self.message_user(request, "단어가 선택되지 않았습니다.", level='WARNING')
 
-        self.message_user(
-            request,
-            f"{len(words)}개 단어로 BWS 튜플 생성이 완료되었습니다. (차원: {dimension})"
-        )
+    @admin.action(description="선택한 단어로 Arousal 튜플 생성")
+    def generate_arousal_tuples(self, request, queryset):
+        from django.core.management import call_command
+        arousal_ids = queryset.values_list('id', flat=True)
+        if arousal_ids:
+            call_command('generate_bws_tuples', word_ids=",".join(map(str, arousal_ids)), dimension='A')
+            self.message_user(request, f"Arousal 튜플 생성 완료 ({len(arousal_ids)}개 단어)")
+        else:
+            self.message_user(request, "단어가 선택되지 않았습니다.", level='WARNING')
 
-    generate_bws_tuples.short_description = "선택한 단어로 BWS 튜플 생성"
-
+    @admin.action(description="선택한 단어로 Dominance 튜플 생성")
+    def generate_dominance_tuples(self, request, queryset):
+        from django.core.management import call_command
+        dominance_ids = queryset.values_list('id', flat=True)
+        if dominance_ids:
+            call_command('generate_bws_tuples', word_ids=",".join(map(str, dominance_ids)), dimension='D')
+            self.message_user(request, f"Dominance 튜플 생성 완료 ({len(dominance_ids)}개 단어)")
+        else:
+            self.message_user(request, "단어가 선택되지 않았습니다.", level='WARNING')
 
 # WordTuple 모델 관리자 페이지
 class WordTupleAdmin(admin.ModelAdmin):
-    list_display = ('id', 'dimension', 'display_words', 'is_gold', 'created_at')
+    list_display = ('id', 'get_dimension_display', 'display_words', 'is_gold', 'created_at')
     list_filter = ('dimension', 'is_gold', 'created_at')
     search_fields = ('words__text',)
     list_max_show_all = 100000
     actions = ['delete_selected_wordtuples', 'delete_all_wordtuples']
+
+    def get_dimension_display(self, obj):
+        dim_map = {
+            'V': '감정가 (Valence)',
+            'A': '각성도 (Arousal)',
+            'D': '지배성 (Dominance)',
+            None: '-'
+        }
+        return dim_map.get(obj.dimension, obj.dimension)
+
+    get_dimension_display.short_description = '차원'
 
     def display_words(self, obj):
         return ", ".join([word.text for word in obj.words.all()])
 
     display_words.short_description = "단어"
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name in ['gold_best_word', 'gold_worst_word']:
+            try:
+                object_id = request.resolver_match.kwargs.get('object_id')
+                if object_id:
+                    word_tuple = WordTuple.objects.get(pk=object_id)
+                    kwargs['queryset'] = word_tuple.words.all()
+            except WordTuple.DoesNotExist:
+                pass
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
     @admin.action(description="선택된 워드 튜플 삭제")
     def delete_selected_wordtuples(self, request, queryset):
         from django.db import transaction
+        from .models import UserWordTuple, Rating
 
         with transaction.atomic():
-            # 선택된 튜플들의 ID 목록
             selected_tuple_ids = list(queryset.values_list('id', flat=True))
 
-            # 1. 관련 UserWordTuple 삭제
-            from .models import UserWordTuple
+            # 관련 객체 삭제
             user_tuples_deleted = UserWordTuple.objects.filter(word_tuple__in=selected_tuple_ids).delete()[0]
-
-            # 2. 관련 Rating 삭제
-            from .models import Rating
             ratings_deleted = Rating.objects.filter(word_tuple__in=selected_tuple_ids).delete()[0]
-
-            # 3. 선택된 WordTuple 삭제
             tuples_deleted = queryset.count()
             queryset.delete()
 
-            # 4. 테이블에 남은 레코드가 없으면 SQLite 시퀀스 재설정
+            # Word별 total_ratings 재계산
+            for word in Word.objects.all():
+                word.total_ratings = Rating.objects.filter(Q(best_word=word) | Q(worst_word=word)).count()
+                word.save()
+
+            # UserProfile별 total_ratings 재계산
+            for profile in UserProfile.objects.select_related('user'):
+                profile.total_ratings = Rating.objects.filter(user=profile.user).count()
+                profile.save()
+
+            # ID 리셋 (전체 삭제 시에만)
             if WordTuple.objects.count() == 0:
                 with connection.cursor() as cursor:
-                    # SQLite 시퀀스 초기화
                     cursor.execute("DELETE FROM sqlite_sequence WHERE name='vad_survey_wordtuple';")
-                    # 관련 테이블도 초기화
                     cursor.execute("DELETE FROM sqlite_sequence WHERE name='vad_survey_userwordtuple';")
                     cursor.execute("DELETE FROM sqlite_sequence WHERE name='vad_survey_rating';")
-                    # M2M 관계 테이블도 초기화 (WordTuple_words)
                     cursor.execute("DELETE FROM sqlite_sequence WHERE name='vad_survey_wordtuple_words';")
 
         self.message_user(
@@ -156,26 +191,25 @@ class WordTupleAdmin(admin.ModelAdmin):
     @admin.action(description="모든 WordTuple 삭제")
     def delete_all_wordtuples(self, request, queryset):
         from django.db import transaction
+        from .models import UserWordTuple, Rating
 
         with transaction.atomic():
-            # 1. 관련 UserWordTuple 삭제
-            from .models import UserWordTuple
+            # 관련 객체 전부 삭제
             user_tuples_deleted = UserWordTuple.objects.all().delete()[0]
-
-            # 2. 관련 Rating 삭제
-            from .models import Rating
             ratings_deleted = Rating.objects.all().delete()[0]
-
-            # 3. 모든 WordTuple 삭제
             tuples_deleted = WordTuple.objects.all().delete()[0]
 
-            # 4. SQLite 시퀀스 재설정 (모든 관련 테이블)
+            # Word total_ratings 리셋
+            Word.objects.all().update(total_ratings=0)
+
+            # UserProfile total_ratings 리셋
+            UserProfile.objects.all().update(total_ratings=0)
+
+            # ID 리셋
             with connection.cursor() as cursor:
-                # 주요 테이블 시퀀스 초기화
                 cursor.execute("DELETE FROM sqlite_sequence WHERE name='vad_survey_wordtuple';")
                 cursor.execute("DELETE FROM sqlite_sequence WHERE name='vad_survey_userwordtuple';")
                 cursor.execute("DELETE FROM sqlite_sequence WHERE name='vad_survey_rating';")
-                # M2M 관계 테이블도 초기화 (WordTuple_words)
                 cursor.execute("DELETE FROM sqlite_sequence WHERE name='vad_survey_wordtuple_words';")
 
         self.message_user(
@@ -183,6 +217,30 @@ class WordTupleAdmin(admin.ModelAdmin):
             f"모든 워드 튜플({tuples_deleted})이 삭제되었습니다. "
             f"관련된 {user_tuples_deleted} 작업자 할당과 {ratings_deleted} 평가 기록도 함께 삭제되었습니다."
         )
+
+    def delete_queryset(self, request, queryset):
+        with transaction.atomic():
+            # 관련 평점 및 사용자 ID 수집
+            related_ratings = Rating.objects.filter(word_tuple__in=queryset)
+            user_ids = related_ratings.values_list('user_id', flat=True)
+
+            # 평가 삭제
+            related_ratings.delete()
+
+            # 튜플, 할당 삭제
+            UserWordTuple.objects.filter(word_tuple__in=queryset).delete()
+            queryset.delete()
+
+            # 사용자 프로필 업데이트
+            for user_id in set(user_ids):
+                try:
+                    profile = UserProfile.objects.get(user_id=user_id)
+                    profile.total_ratings = Rating.objects.filter(user_id=user_id).count()
+                    profile.save()
+                except UserProfile.DoesNotExist:
+                    continue
+
+        super().delete_queryset(request, queryset)
 
 
 # 사용자-튜플 할당 필터
@@ -641,13 +699,17 @@ class RatingAdmin(admin.ModelAdmin):
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ('get_sona_id', 'gender', 'age', 'gold_accuracy', 'total_ratings', 'is_active', 'last_rating_at')
+    list_display = ('get_sona_id', 'gender', 'age', 'formatted_gold_accuracy', 'total_ratings', 'is_active', 'last_rating_at')
     list_filter = ('gender', 'is_active')
     search_fields = ('user__username',)
 
     readonly_fields = (
         'get_sona_id', 'gender', 'age', 'gold_accuracy', 'total_ratings', 'is_active', 'last_rating_at',
     )
+
+    @admin.display(description='Gold Accuracy (%)')
+    def formatted_gold_accuracy(self, obj):
+        return f"{obj.gold_accuracy:.2f}"
 
     @admin.display(description='소나 ID')
     def get_sona_id(self, obj):

@@ -1,0 +1,107 @@
+{% extends 'vad_survey/base.html' %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto bg-white rounded-lg shadow-md p-6">
+    <form method="post" class="space-y-8" id="ratingForm">
+        {% csrf_token %}
+        <input type="hidden" name="tuple_id" value="{{ word_tuple.id }}">
+        <h2 class="text-2xl font-bold mb-6">연습 시행입니다.</h2>
+        <div class="border border-gray-200 p-10 rounded mt-4">
+            {% if dimension.code == 'V' %}
+                    <div class="text-center">
+                        {{ message_valence.valence_pos }}
+                    </div>
+                    <div class="grid grid-cols-4 gap-4">
+                        {% for word in words %}
+                            <label class="flex justify-center text-xl items-center space-x-2 mb-4">
+                                <input
+                                    type="radio"
+                                    name="best_word"
+                                    value="{{ word }}"
+                                    required
+                                    class="dimension-select"
+                                    data-type="best"
+                                >
+                                <span>{{ word }}</span>
+                            </label>
+                            {% endfor %}
+                    </div>
+                <br><br>
+                    <div class="text-center">
+                        {{ message_valence.valence_neg }}
+                    </div>
+                    <div class="grid grid-cols-4 gap-4">
+                        {% for word in words %}
+                            <label class="flex justify-center text-xl items-center space-x-2 mb-4">
+                                <input
+                                    type="radio"
+                                    name="worst_word"
+                                    value="{{ word }}"
+                                    required
+                                    class="dimension-select"
+                                    data-type="worst"
+                                >
+                                <span>{{ word }}</span>
+                            </label>
+                            {% endfor %}
+                    </div>
+            {% elif dimension.code == 'A' %}
+            <div class="text-center">
+                        {{ message_arousal.arousal_h }}
+                    </div>
+                    <div class="grid grid-cols-4 gap-4">
+                        {% for word in words %}
+                        <label class="flex items-center space-x-2">
+                            <input
+                                    type="radio"
+                                    name="best_word"
+                                    value="{{ word }}"
+                                    required
+                                    class="dimension-select"
+                                    data-type="best"
+                                >
+                            <span>{{ word }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    <br><br>
+                    <div class="text-center">
+                    {{ message_arousal.arousal_l }}
+                    </div>
+                    <div class="grid grid-cols-4 gap-4">
+                        {% for word in words %}
+                        <label class="flex items-center space-x-2">
+                            <input
+                                    type="radio"
+                                    name="worst_word"
+                                    value="{{ word }}"
+                                    required
+                                    class="dimension-select"
+                                    data-type="worst"
+                                >
+                            <span>{{ word }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+            {% endif %}
+        </div>
+
+        <button type="submit" class="w-full py-2 px-4 bg-blue-500 text-white rounded hover:bg-blue-600">
+            답안 확인
+        </button>
+    </form>
+
+    {% if message %}
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const msg = "{{ message|escapejs }}";
+        alert(msg);
+        if (msg === "정답입니다!") {
+            // 정답일 때 rate_words 페이지로 이동
+            window.location.href = "{% url 'vad_survey:intro2' %}";
+        }
+    });
+    </script>
+    {% endif %}
+</div>
+{% endblock %}

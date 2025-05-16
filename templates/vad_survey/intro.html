@@ -1,32 +1,92 @@
 {% extends 'vad_survey/base.html' %}
 
 {% block content %}
+
+{% if messages %}
+  {% for msg in messages %}
+    <div class="alert alert-{{ msg.tags }}">{{ msg }}</div>
+  {% endfor %}
+{% endif %}
+
 <div class="max-w-5xl mx-auto bg-white rounded-lg shadow-md p-6">
     
-    <div class="text-2xl font-bold mb-6">실험에 참여해주셔서 감사합니다.</div>
-    <div class="mt-4 text-m">실험이 진행되면 다음과 같은 2개의 질문과 함께 4개의 단어로 이루어진 단어 목록이 나타납니다.</div>
-    <div class="border border-gray-200 p-4 rounded mt-4">
+    <div class="text-2xl font-bold mb-6">연구에 참여해주셔서 감사합니다.</div>
         {% if dimension.code == 'V' %}
-        <p>아래 4개의 단어 중
-        <span class="font-bold text-red-500">'행복한', '기쁜', '긍정적인', '만족스러운', '흡족한', '기대되는'</span>과 가장 관련된 단어는 무엇인가요?<br><br>
-        아래 4개의 단어 중 
-        <span class="font-bold text-red-500">'불행한', '성내는', '부정적인', '불만스러운', '울적한', '절망적인'</span>과 가장 관련된 단어는 무엇인가요?
+
+        <div class="mt-4 text-m">본 연구는 한국어 어휘(단어)의 감정 정보에 대한 여러분들의 평가를 수집하는 것을 목적으로 하고 있습니다.<br>
+            조사가 시작되면, 여러분은 한 화면에서 4개의 단어 목록을 보게 될 것입니다.<br>
+            여러분이 해야 할 일은 4개의 단어 중에서 가장 긍정적인 단어와 가장 부정적인 단어를 선택하는 일입니다.<br>
+            여러분은 총 100개 세트의 단어 목록에 대해서 평가를 하셔야 합니다.<br><br>
+
+            아래 예시처럼, <span class="font-bold ">가장 긍정적인 단어를 선택할 때</span>는 <em>행복, 기쁨, 긍정적인 것, 만족, 평온, 소망</em>과 <span class="font-bold ">가장 관련성이 높은 단어</span>를 선택하거나, 또는 <em>불행, 성가심, 부정적인 것, 불만, 우울감, 절망</em>과 <span class="font-bold ">가장 관련성이 낮은 단어를 선택</span>해주세요.<br><br>
+            
+            반대로 <span class="font-bold ">가장 부정적인 단어를 선택할 때</span>는 <em> 불행, 성가심, 부정적인 것, 불만, 우울감, 절망</em>과 <span class="font-bold ">가장 관련성이 높은 단어를 선택</span>하거나, 또는 <em>행복, 기쁨, 긍정적인 것, 만족, 평온, 소망</em>과 <span class="font-bold ">가장 관련성이 낮은 단어를 선택</span>해주세요.
+        
         {% elif dimension.code == 'A' %}
-        아래 4개의 단어 중
-        <span class="font-bold text-red-500">'긴장하는', '활기찬', '자극적인', '흥분된', '과민한', '깨어있는'</span>과 가장 관련된 단어는 무엇인가요?<br><br>
-        <br>아래 4개의 단어 중 
-        <span class="font-bold text-red-500">'긴장풀린', '수동적인', '이완된', '차분한', '느린', '둔한', '나른한'</span>과 가장 관련된 단어는 무엇인가요?
+        <div class="mt-4 text-m">본 연구는 한국어 어휘(단어)의 감정 정보에 대한 여러분들의 평가를 수집하는 것을 목적으로 하고 있습니다.<br>
+            조사가 시작되면, 여러분은 한 화면에서 4개의 단어 목록을 보게 될 것입니다.<br>
+            여러분이 해야 할 일은 4개의 단어 중에서 각성 수준이 가장 높은 단어와 각성 수준이 가장 낮은 단어를 선택하는 일입니다.<br>
+            여러분은 총 100개 세트의 단어 목록에 대해서 평가를 하셔야 합니다.<br><br>
+    
+            아래 예시처럼, <span class="font-bold ">각성 수준이 높은 단어를 선택할 때</span>는 <em>긴장하는, 적극적인, 자극적인, 흥분하는, 떨리는, 깨어있는</em>과 <span class="font-bold ">가장 관련성이 높은 단어를 선택</span>하거나, 또는 <em>긴장풀린, 소극적인, 이완된, 차분한, 느린, 둔한, 나른한</em>과 <span class="font-bold ">가장 관련성이 낮은 단어를 선택</span>해주세요.<br><br>
+
+            반대로 <span class="font-bold ">각성 수준이 낮은 단어를 선택할 때</span>는 <em>긴장풀린, 소극적인, 이완된, 차분한, 느린, 둔한, 나른한</em>과 <span class="font-bold ">가장 관련성이 높은 단어를 선택</span>하거나, 또는 <em>긴장하는, 적극적인, 자극적인, 흥분하는, 떨리는, 깨어있는</em>과 <span class="font-bold ">가장 관련성이 낮은 단어를 선택</span>해주세요.
+        </div>
+        {% endif %}
+    <div class="border border-gray-200 p-10 rounded mt-4">
+        {% if dimension.code == 'V' %}
+            {% for message in message_valence.values %}
+                <div class="text-center">
+                    {{ message|safe }}
+                </div>
+                <div class="grid grid-cols-4 gap-4">
+                    {% for word in test_words %}
+                        <label class="flex justify-center text-xl items-center space-x-2 mb-4">
+                            <input
+                                type="radio"
+                                name="best_word"
+                                value="{{ word }}"
+                                required
+                                class="dimension-select"
+                                data-type="best"
+                            >
+                            <span>{{ word }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                <br><br>
+        {% elif dimension.code == 'A' %}
+            {% for message in message_arousal.values %}
+                <div class="text-center">
+                    {{ message|safe }}
+                </div>
+                <div class="grid grid-cols-4 gap-4">
+                    {% for word in test_words %}
+                        <label class="flex justify-center text-xl items-center space-x-2 mb-4">
+                            <input
+                                type="radio"
+                                name="best_word"
+                                value="{{ word }}"
+                                required
+                                class="dimension-select"
+                                data-type="best"
+                            >
+                            <span>{{ word }}</span>
+                        </label>
+                    {% endfor %}
+                </div>
+            {% endfor %}
         {% endif %}
     </div>
-    <div class="mt-4 text-m">여러분의 과제는 제시된 4개의 단어 중 위 질문에 붉은색으로 표시된 형용사와 가장 일치하는 단어를 선택하는 것입니다.<br>
-        실험은 총 80개의 페이지로 구성되어 있습니다.
+    <div class="mt-4 text-m">연습을 해보겠습니다.
     <br><br>
-    준비가 되셨다면 "평가 시작하기"를 눌러주세요.
+    준비가 되셨다면 "연습 시작하기"를 눌러주세요.
     </div>
     <div class="mt-6 text-center">
-        <a href="{% url 'vad_survey:rate_words' %}"
+        <a href="{% url 'vad_survey:practice' %}"
            class="inline-block py-3 px-6 bg-blue-500 text-white font-medium rounded hover:bg-blue-600">
-            평가 시작하기
+            연습 시작하기
         </a>
     </div>
 </div>

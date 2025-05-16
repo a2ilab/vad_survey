@@ -7,71 +7,55 @@ from vad_survey.models import Word, WordTuple
 
 
 class Command(BaseCommand):
-    help = 'Generate Best-Worst Scaling tuples and save them to the database'
+    help = 'Generate Best-Worst Scaling tuples without dimension info'
 
     def add_arguments(self, parser):
-        parser.add_argument('--items-per-tuple', type=int, default=4,
-                            help='Number of items per tuple (default: 4)')
-        parser.add_argument('--scaling-factor', type=float, default=2.0,
-                            help='Factor to determine number of tuples (default: 2.0)')
-        parser.add_argument('--iterations', type=int, default=100,
-                            help='Number of iterations to find optimal tuple set (default: 100)')
-        parser.add_argument('--dimension', type=str, default='V',
-                            help='Dimension for tuples (V=Valence, A=Arousal, D=Dominance, default: V)')
-        parser.add_argument('--random-seed', type=int, default=1234,
-                            help='Random seed for reproducibility (default: 1234)')
-        parser.add_argument('--word-ids', type=str, default=None, help='Comma‑separated list of Word primary‑key IDs to include')
+        parser.add_argument('--items-per-tuple', type=int, default=4)
+        parser.add_argument('--scaling-factor', type=float, default=2.0)
+        parser.add_argument('--iterations', type=int, default=100)
+        parser.add_argument('--random-seed', type=int, default=1234)
+        parser.add_argument('--word-ids', type=str, default=None)
+        parser.add_argument('--dimension', type=str, default=None, help='Optional dimension to save with tuples')
+        parser.add_argument('--word-texts', type=str, default=None)  # 추가 가능
+
     def handle(self, *args, **options):
         word_ids_opt = options.get('word_ids')
+        word_texts_opt = options.get('word_texts')
+
+        # word ID 또는 텍스트 기반 조회
         if word_ids_opt:
             id_list = [int(pk) for pk in word_ids_opt.split(',') if pk]
             words_qs = Word.objects.filter(id__in=id_list)
+        elif word_texts_opt:
+            text_list = [t.strip() for t in word_texts_opt.split(',') if t.strip()]
+            words_qs = Word.objects.filter(text__in=text_list)
         else:
-            words_qs = Word.objects.all()
-        items_per_tuple = options['items_per_tuple']
-        scaling_factor = options['scaling_factor']
-        num_iterations = options['iterations']
-        dimension = options['dimension']
-        random_seed = options['random_seed']
+            raise CommandError("단어 ID 또는 텍스트를 제공해야 합니다 (--word-ids 또는 --word-texts)")
 
-        if dimension not in ['V', 'A', 'D']:
-            raise CommandError('Dimension must be V, A, or D')
-
-        generator = BWSTupleGenerator(
-            items_per_tuple=items_per_tuple,
-            scaling_factor=scaling_factor,
-            num_iterations=num_iterations,
-            random_seed=random_seed
-        )
-
-        # 데이터베이스에서 단어 가져오기
         words = list(words_qs)
-        if len(words) < items_per_tuple:
+        if len(words) < options['items_per_tuple']:
             self.stderr.write("단어 수가 tuple 크기보다 적습니다.")
             return
 
-        self.stdout.write(f"Found {len(words)} words in the database")
-        self.stdout.write(f"Generating {round(scaling_factor * len(words))} {items_per_tuple}-tuples...")
-        self.stdout.write(f"Running {num_iterations} iterations...")
+        self.stdout.write(f"{len(words)}개 단어로 튜플 생성 시작...")
 
-        # 튜플 생성
+        generator = BWSTupleGenerator(
+            items_per_tuple=options['items_per_tuple'],
+            scaling_factor=options['scaling_factor'],
+            num_iterations=options['iterations'],
+            random_seed=options['random_seed']
+        )
+
         tuples = generator.generate_tuples(words)
 
-        # 데이터베이스에 저장
         tuples_created = 0
         for tuple_words in tuples:
-            # 단어 객체 가져오기
-            word_objects = Word.objects.filter(text__in=tuple_words)
-            if word_objects.count() == items_per_tuple:
-                # 새 튜플 생성
-                word_tuple = WordTuple.objects.create(dimension=dimension)
-                word_tuple.words.set(word_objects)
-                tuples_created += 1
+            word_tuple = WordTuple.objects.create(dimension=options['dimension'])
+            word_tuple.words.set(tuple_words)
+            word_tuple.save()
+            tuples_created += 1
 
-        self.stdout.write(self.style.SUCCESS(
-            f"Successfully created {tuples_created} WordTuple objects for dimension {dimension}"
-        ))
-
+        self.stdout.write(self.style.SUCCESS(f"{tuples_created}개 WordTuple 생성 완료"))
 
 class BWSTupleGenerator:
     def __init__(
