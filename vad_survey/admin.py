@@ -78,7 +78,7 @@ class WordAdmin(ImportExportModelAdmin):
             for user_id in set(user_ids):
                 try:
                     profile = UserProfile.objects.get(user_id=user_id)
-                    profile.total_ratings = Rating.objects.filter(user_id=user_id).count()
+                    profile.total_ratings = Rating.objects.filter(user=profile.user).values('word_tuple').distinct().count()
                     profile.save()
                 except UserProfile.DoesNotExist:
                     continue
@@ -122,6 +122,12 @@ class WordTupleAdmin(admin.ModelAdmin):
     search_fields = ('words__text',)
     list_max_show_all = 100000
     actions = ['delete_selected_wordtuples', 'delete_all_wordtuples']
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        if 'delete_selected' in actions:
+            del actions['delete_selected']
+        return actions
 
     def get_dimension_display(self, obj):
         dim_map = {
@@ -704,12 +710,8 @@ class UserProfileAdmin(admin.ModelAdmin):
     search_fields = ('user__username',)
 
     readonly_fields = (
-        'get_sona_id', 'gender', 'age', 'gold_accuracy', 'total_ratings', 'is_active', 'last_rating_at',
+        'get_sona_id', 'gender', 'age', 'formatted_gold_accuracy', 'total_ratings', 'is_active', 'last_rating_at',
     )
-
-    @admin.display(description='Gold Accuracy (%)')
-    def formatted_gold_accuracy(self, obj):
-        return f"{obj.gold_accuracy:.2f}"
 
     @admin.display(description='소나 ID')
     def get_sona_id(self, obj):
@@ -720,11 +722,20 @@ class UserProfileAdmin(admin.ModelAdmin):
             'get_sona_id',
             'gender',
             'age',
-            'gold_accuracy',
+            'formatted_gold_accuracy',
             'total_ratings',
+            'rated_tuple_count',
             'is_active',
             'last_rating_at',
         ]
+
+    @admin.display(description='Gold accuracy (%)')
+    def formatted_gold_accuracy(self, obj):
+        return f"{obj.gold_accuracy:.2f}%" if obj.gold_accuracy is not None else "-"
+
+    @admin.display(description='평가한 튜플 수')
+    def rated_tuple_count(self, obj):
+        return obj.user.rating_set.values('word_tuple').distinct().count()
 
 def delete_model(self, request, obj):
     messages.success(request, "연결된 사용자 계정도 함께 삭제되었습니다.")

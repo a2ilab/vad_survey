@@ -95,8 +95,9 @@ class Rating(models.Model):
                 "dimension": f"This tuple is for {self.word_tuple.get_dimension_display()} ratings"
             })
 
-        # 응답 시간이 너무 짧거나 긴 경우 검증 (예: 0.5초 미만 또는 5분 초과)
-        if self.start_time and self.response_time:
+        # 응답 시간 검증을 회원가입 시 스킵하기
+        # 평가 과정에서만 실행되도록 조건 추가
+        if self.pk is not None and self.start_time and self.response_time:  # 이미 존재하는 객체일 경우만 검증
             if self.response_time < 500:  # 500ms = 0.5초
                 raise ValidationError({
                     "response_time": "Response time is too short"
@@ -146,8 +147,9 @@ class Rating(models.Model):
         # 응답 시간 계산
         self.calculate_response_time()
 
-        # 유효성 검증
-        self.clean()
+        # 유효성 검증 - 새로 생성되는 경우에는 유효성 검증 건너뛰기
+        if self.pk is not None:  # 이미 존재하는 객체인 경우에만 검증
+            self.clean()
 
         # 저장
         super().save(*args, **kwargs)

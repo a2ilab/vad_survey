@@ -180,6 +180,7 @@ def practice(request):
 def intro2(request):
     return render(request, 'vad_survey/intro2.html')
 
+
 def rate_words(request):
     """특정 차원(V, A, D)의 단어 튜플을 평가하는 뷰"""
 
@@ -209,10 +210,10 @@ def rate_words(request):
 
         # 모든 튜플 평가 완료 시 complete.html로 이동
         if not user_tuples.exists():
-          total_ratings = Rating.objects.filter(user=request.user).count()
-          return render(request, 'vad_survey/complete.html', {
-              'total_ratings': total_ratings
-          })
+            total_ratings = Rating.objects.filter(user=request.user).count()
+            return render(request, 'vad_survey/complete.html', {
+                'total_ratings': total_ratings
+            })
 
         # 평가할 수 있는 튜플 찾기
         available_tuples = []
@@ -268,6 +269,9 @@ def rate_words(request):
         # 세션에 현재 평가 중인 튜플 저장
         request.session['current_rating_tuple_id'] = current_user_tuple.id
 
+        # 평가 시작 시간 기록
+        request.session['rating_start_time'] = timezone.now().isoformat()
+
     # 3. 현재 평가할 튜플 및 차원 설정
     word_tuple = current_user_tuple.word_tuple
     dimension_code = word_tuple.dimension
@@ -309,23 +313,42 @@ def rate_words(request):
                             best_word = next(w for w in words if str(w.id) == best_word_id)
                             worst_word = next(w for w in words if str(w.id) == worst_word_id)
 
-                            Rating.objects.create(
+                            # 세션에서 평가 시작 시간 가져오기
+                            start_time_str = request.session.get('rating_start_time')
+                            if start_time_str:
+                                try:
+                                    start_time = timezone.datetime.fromisoformat(start_time_str)
+                                except (ValueError, TypeError):
+                                    start_time = timezone.now()
+                            else:
+                                start_time = timezone.now()
+
+                            # Rating 객체 생성 부분
+                            rating = Rating.objects.create(
                                 user=request.user,
                                 word_tuple=word_tuple,
                                 dimension=dimension_code,
                                 best_word=best_word,
                                 worst_word=worst_word,
-                                start_time=timezone.now()
+                                start_time=start_time
                             )
+
+                            # response_time이 너무 짧으면 최소값으로 설정
+                            if not rating.response_time or rating.response_time < 500:
+                                rating.response_time = 500  # 최소 0.5초
+                                rating.save(update_fields=['response_time'])
 
                             # 완료 처리
                             current_user_tuple.completed = True
                             current_user_tuple.save()
 
-                            # 세션에서 현재 평가 중인 튜플 제거
+                            # 세션에서 현재 평가 중인 튜플과 시작 시간 제거
                             if 'current_rating_tuple_id' in request.session:
                                 del request.session['current_rating_tuple_id']
+                            if 'rating_start_time' in request.session:
+                                del request.session['rating_start_time']
 
+                            messages.success(request, '평가가 성공적으로 저장되었습니다.')
 
                 except ValidationError as e:
                     error_msg = str(e.message_dict) if hasattr(e, 'message_dict') else str(e)
@@ -341,6 +364,10 @@ def rate_words(request):
         'name': dimension_name
     }
 
+    # 새로운 평가를 시작할 때 시작 시간 설정
+    if 'rating_start_time' not in request.session:
+        request.session['rating_start_time'] = timezone.now().isoformat()
+
     return render(request, 'vad_survey/rate.html', {
         'words': words,
         'dimension': current_dimension,
@@ -350,32 +377,34 @@ def rate_words(request):
             user=request.user,
             completed=False
         ).count(),
-        'total_ratings' : UserWordTuple.objects.filter(user=request.user).count(),
-        'completed_ratings' : UserWordTuple.objects.filter(
+        'total_ratings': UserWordTuple.objects.filter(user=request.user).count(),
+        'completed_ratings': UserWordTuple.objects.filter(
             user=request.user,
             completed=True
         ).count(),
-        'progress_rate' : UserWordTuple.objects.filter(
+        'progress_rate': UserWordTuple.objects.filter(
             user=request.user,
             completed=True
-        ).count() /  UserWordTuple.objects.filter(user=request.user).count() * 100,
-        'message_valence' : {'valence_pos': 
-                             mark_safe('''<p>아래 4개의 단어 중 <span class="font-bold text-red-500">[ 행복 ], [ 기쁨 ], [ 긍정적인 것 ], [ 만족 ], [ 평온 ], [ 소망 ]</span>과 가장 관련성이 <span class="font-bold ">높은</span> 단어는 무엇인가요? <br><span class="font-bold text-red-500">또는</span> <span class="font-bold text-red-500"> [ 불행 ], [ 성가심 ], [ 부정적인 것 ],[ 불만 ], [ 우울감 ], [ 절망 ] </span>과 가장 관련성이 <span class="font-bold ">낮은</span> 단어는 무엇인가요?'''),
-                             'valence_neg': 
-                             mark_safe('''<p>아래 4개의 단어 중 <span class="font-bold text-red-500">[ 불행 ], [ 성가심 ], [ 부정적인 것 ],[ 불만 ], [ 우울감 ], [ 절망 ]</span>과 가장 관련성이 <span class="font-bold ">높은</span> 단어는 무엇인가요? <br><span class="font-bold text-red-500">또는</span> <span class="font-bold text-red-500">[ 행복 ], [ 기쁨 ], [ 긍정적인 것 ], [ 만족 ], [ 평온 ], [ 소망 ] </span>과 가장 관련성이 <span class="font-bold ">낮은</span> 단어는 무엇인가요?''')
-                     },
-        'message_arousal' : {'arousal_h':
-                             mark_safe(''' <p>아래 4개의 단어 중<br>
+        ).count() / UserWordTuple.objects.filter(user=request.user).count() * 100,
+        'message_valence': {'valence_pos':
+                                mark_safe(
+                                    '''<p>아래 4개의 단어 중 <span class="font-bold text-red-500">[ 행복 ], [ 기쁨 ], [ 긍정적인 것 ], [ 만족 ], [ 평온 ], [ 소망 ]</span>과 가장 관련성이 <span class="font-bold ">높은</span> 단어는 무엇인가요? <br><span class="font-bold text-red-500">또는</span> <span class="font-bold text-red-500"> [ 불행 ], [ 성가심 ], [ 부정적인 것 ],[ 불만 ], [ 우울감 ], [ 절망 ] </span>과 가장 관련성이 <span class="font-bold ">낮은</span> 단어는 무엇인가요?'''),
+                            'valence_neg':
+                                mark_safe(
+                                    '''<p>아래 4개의 단어 중 <span class="font-bold text-red-500">[ 불행 ], [ 성가심 ], [ 부정적인 것 ],[ 불만 ], [ 우울감 ], [ 절망 ]</span>과 가장 관련성이 <span class="font-bold ">높은</span> 단어는 무엇인가요? <br><span class="font-bold text-red-500">또는</span> <span class="font-bold text-red-500">[ 행복 ], [ 기쁨 ], [ 긍정적인 것 ], [ 만족 ], [ 평온 ], [ 소망 ] </span>과 가장 관련성이 <span class="font-bold ">낮은</span> 단어는 무엇인가요?''')
+                            },
+        'message_arousal': {'arousal_h':
+                                mark_safe(''' <p>아래 4개의 단어 중<br>
                              <span class="font-bold text-red-500">[ 긴장하는 ], [ 적극적인 ], [ 자극적인 ], [ 흥분하는 ], [ 떨리는 ], [ 깨어있는 ]</span>과 가장 관련성이 <span class="font-bold ">높은</span> 단어는 무엇인가요?
                              <br>또는
                              <br><span class="font-bold text-red-500"> [ 긴장풀린 ], [ 소극적인 ], [ 이완된 ],[ 차분한 ], [ 느린 ], [ 둔한 ], [ 나른한 ] </span>과 가장 관련성이 <span class="font-bold ">낮은</span> 단어는 무엇인가요?'''),
-                             'arousal_l':
-                             mark_safe(''' <p>아래 4개의 단어 중<br>
+                            'arousal_l':
+                                mark_safe(''' <p>아래 4개의 단어 중<br>
                              <span class="font-bold text-red-500"> [ 긴장풀린 ], [ 소극적인 ], [ 이완된 ],[ 차분한 ], [ 느린 ], [ 둔한 ], [ 나른한 ] </span>과 가장 관련성이 <span class="font-bold ">높은</span> 단어는 무엇인가요?
                              <br>또는
                              <br><span class="font-bold text-red-500">[ 긴장하는 ], [ 적극적인 ], [ 자극적인 ], [ 흥분하는 ], [ 떨리는 ], [ 깨어있는 ]</span>과 가장 관련성이 <span class="font-bold ">낮은</span> 단어는 무엇인가요?''')
-                             }
-    }) # 수정
+                            }
+    })
 
 def signup(request):
     if request.method == 'POST':
@@ -398,7 +427,7 @@ def signup(request):
                 return render(request, 'registration/signup.html', {'form': form})
 
             login(request, user)
-            messages.success(request, '회원가입이 완료되었습니다. 관리자가 평가 작업을 할당할 때까지 기다려주세요.')
+            messages.info(request, '회원가입이 완료되었습니다. 관리자가 평가 작업을 할당할 때까지 기다려주세요.')
             return redirect('vad_survey:intro') # 수정
     else:
         form = SignUpForm()

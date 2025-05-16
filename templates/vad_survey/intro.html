@@ -1,13 +1,6 @@
 {% extends 'vad_survey/base.html' %}
 
 {% block content %}
-
-{% if messages %}
-  {% for msg in messages %}
-    <div class="alert alert-{{ msg.tags }}">{{ msg }}</div>
-  {% endfor %}
-{% endif %}
-
 <div class="max-w-5xl mx-auto bg-white rounded-lg shadow-md p-6">
     
     <div class="text-2xl font-bold mb-6">연구에 참여해주셔서 감사합니다.</div>
