@@ -705,37 +705,62 @@ class RatingAdmin(admin.ModelAdmin):
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ('get_sona_id', 'gender', 'age', 'formatted_gold_accuracy', 'total_ratings', 'is_active', 'last_rating_at')
+    list_display = (
+        'get_sona_id', 'gender', 'age',
+        'formatted_gold_accuracy', 'total_ratings',
+        'gold_tuple_count', 'rated_tuple_count',
+        'is_active', 'last_rating_at',
+    )
+    readonly_fields = [
+        'get_sona_id', 'gender', 'age',
+        'formatted_gold_accuracy', 'total_ratings',
+        'rated_tuple_count', 'gold_tuple_count',
+        'is_active', 'last_rating_at'
+    ]
     list_filter = ('gender', 'is_active')
     search_fields = ('user__username',)
-
-    readonly_fields = (
-        'get_sona_id', 'gender', 'age', 'formatted_gold_accuracy', 'total_ratings', 'is_active', 'last_rating_at',
-    )
 
     @admin.display(description='소나 ID')
     def get_sona_id(self, obj):
         return obj.user.username
 
-    def get_fields(self, request, obj=None):
-        return [
-            'get_sona_id',
-            'gender',
-            'age',
-            'formatted_gold_accuracy',
-            'total_ratings',
-            'rated_tuple_count',
-            'is_active',
-            'last_rating_at',
-        ]
-
     @admin.display(description='Gold accuracy (%)')
     def formatted_gold_accuracy(self, obj):
-        return f"{obj.gold_accuracy:.2f}%" if obj.gold_accuracy is not None else "-"
+        # 할당된 골든 튜플 수
+        assigned_gold = obj.user.userwordtuple_set.filter(word_tuple__is_gold=True).count()
+        # 평가한 골든 튜플 수
+        rated_gold = obj.user.rating_set.filter(word_tuple__is_gold=True).values('word_tuple').distinct().count()
+
+        if assigned_gold == 0:
+            return "-"  # 골든 튜플 없음
+        elif rated_gold < assigned_gold:
+            return "평가 미완료"
+        elif obj.gold_accuracy is not None:
+            return f"{obj.gold_accuracy:.2f}%"
+        else:
+            return "-"
 
     @admin.display(description='평가한 튜플 수')
     def rated_tuple_count(self, obj):
         return obj.user.rating_set.values('word_tuple').distinct().count()
+
+    @admin.display(description='평가한 골든 튜플 수')
+    def gold_tuple_count(self, obj):
+        return obj.user.rating_set.filter(word_tuple__is_gold=True).values('word_tuple').distinct().count()
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_fields(self, request, obj=None):
+        return self.readonly_fields
+
+
 
 def delete_model(self, request, obj):
     messages.success(request, "연결된 사용자 계정도 함께 삭제되었습니다.")

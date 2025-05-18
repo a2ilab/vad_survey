@@ -40,15 +40,12 @@ class Rating(models.Model):
     best_word = models.ForeignKey('Word', on_delete=models.CASCADE, related_name='best_ratings')
     worst_word = models.ForeignKey('Word', on_delete=models.CASCADE, related_name='worst_ratings')
 
-    response_time = models.IntegerField(
-        null=True,
-        help_text="Response time in milliseconds"
-    )
-    start_time = models.DateTimeField(
-        null=True,
-        help_text="When the user started this rating"
-    )
+    response_time = models.IntegerField(null=True, help_text="Response time in milliseconds")
+    start_time = models.DateTimeField(null=True, help_text="When the user started this rating")
     created_at = models.DateTimeField(auto_now_add=True)
+
+    # ✅ 추가 필드
+    is_active = models.BooleanField(default=True)
 
     class Meta:
         unique_together = ('user', 'word_tuple', 'dimension')
@@ -68,20 +65,14 @@ class Rating(models.Model):
         ]
 
     def clean(self):
-        """
-        Rating 객체의 유효성을 검증합니다.
-        """
-        # 기본 검증
         if not self.user or not self.word_tuple or not self.best_word or not self.worst_word:
             raise ValidationError("All required fields must be provided")
 
-        # 같은 단어가 best와 worst로 선택되지 않도록 검증
         if self.best_word_id == self.worst_word_id:
             raise ValidationError({
                 "worst_word": "Best word and worst word cannot be the same"
             })
 
-        # best_word와 worst_word가 해당 word_tuple에 속하는지 검증
         tuple_words = set(self.word_tuple.words.all())
         if self.best_word not in tuple_words or self.worst_word not in tuple_words:
             raise ValidationError({
@@ -89,76 +80,49 @@ class Rating(models.Model):
                 "worst_word": "Selected words must belong to the word tuple"
             })
 
-        # 차원이 word_tuple의 차원과 일치하는지 검증
         if self.word_tuple.dimension != self.dimension:
             raise ValidationError({
                 "dimension": f"This tuple is for {self.word_tuple.get_dimension_display()} ratings"
             })
 
-        # 응답 시간 검증을 회원가입 시 스킵하기
-        # 평가 과정에서만 실행되도록 조건 추가
-        if self.pk is not None and self.start_time and self.response_time:  # 이미 존재하는 객체일 경우만 검증
-            if self.response_time < 500:  # 500ms = 0.5초
+        if self.pk is not None and self.start_time and self.response_time:
+            if self.response_time < 500:
                 raise ValidationError({
                     "response_time": "Response time is too short"
                 })
-            if self.response_time > 300000:  # 300000ms = 5분
+            if self.response_time > 300000:
                 raise ValidationError({
                     "response_time": "Response time is too long"
                 })
 
     def calculate_response_time(self):
-        """
-        시작 시간부터 현재까지의 응답 시간을 계산합니다 (milliseconds).
-        """
         if self.start_time:
-
             time_diff = timezone.now() - self.start_time
             self.response_time = int(time_diff.total_seconds() * 1000)
 
     def update_user_metrics(self):
-        """
-        사용자의 평가 지표를 업데이트합니다.
-        """
         profile = self.user.userprofile
         profile.total_ratings += 1
         profile.last_rating_at = self.created_at
-
-        # Gold question인 경우 정확도 업데이트
-        if self.word_tuple.is_gold:
-            is_correct = (
-                    self.best_word_id == self.word_tuple.gold_best_word_id and
-                    self.worst_word_id == self.word_tuple.gold_worst_word_id
-            )
-            profile.update_gold_accuracy(is_correct)
-
         profile.save()
 
     def update_word_metrics(self):
-        """
-        평가된 단어들의 지표를 업데이트합니다.
-        """
         self.best_word.total_ratings += 1
         self.worst_word.total_ratings += 1
         self.best_word.save()
         self.worst_word.save()
 
     def save(self, *args, **kwargs):
-        # 응답 시간 계산
         self.calculate_response_time()
 
-        # 유효성 검증 - 새로 생성되는 경우에는 유효성 검증 건너뛰기
-        if self.pk is not None:  # 이미 존재하는 객체인 경우에만 검증
+        if self.pk is not None:
             self.clean()
 
-        # 저장
         super().save(*args, **kwargs)
 
-        # 관련 지표 업데이트
         self.update_user_metrics()
         self.update_word_metrics()
 
-        # word_tuple이 완료되었는지 확인
         self.word_tuple.check_completion()
 
     def __str__(self):
