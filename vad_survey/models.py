@@ -209,6 +209,7 @@ class UserProfile(models.Model):
 
     def update_gold_accuracy(self, is_correct: bool):
         """새로운 gold 평가 결과를 누적하여 정확도 계산"""
+        """
         self.total_ratings += 1
 
         # 현재 정확도는 백분율이므로 백분율 → 정수 개수로 환산
@@ -223,6 +224,8 @@ class UserProfile(models.Model):
         # 정확도가 80% 미만이면 비활성화
         self.is_active = self.gold_accuracy >= 80
         self.save()
+        """
+        pass
 
     def delete(self, *args, **kwargs):
         self.user.delete()  # 연결된 User도 같이 삭제
