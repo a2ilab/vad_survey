@@ -21,6 +21,7 @@ from .models import UserWordTuple
 from .models import Word, WordTuple, Rating, UserProfile
 from django.db import connection
 
+
 # Word 모델용 리소스 클래스
 class WordResource(resources.ModelResource):
     class Meta:
@@ -60,7 +61,11 @@ class WordAdmin(ImportExportModelAdmin):
                 self.message_user(request, f"BWS 튜플 생성 완료")
             else:
                 self.message_user(request, "단어 ID가 입력되지 않았습니다.", level='ERROR')
-        return HttpResponseRedirect("../")
+        return render(request, 'admin/generate_bws_tuples.html', {
+            'opts': self.model._meta,
+            'app_label': self.model._meta.app_label,
+            'title': 'BWS 튜플 생성',
+        })
 
     def delete_queryset(self, request, queryset):
         for word in queryset:
@@ -249,26 +254,6 @@ class WordTupleAdmin(admin.ModelAdmin):
         super().delete_queryset(request, queryset)
 
 
-# 사용자-튜플 할당 필터
-class CompletionStatusFilter(SimpleListFilter):
-    title = '완료 상태'
-    parameter_name = 'completion_status'
-
-    def lookups(self, request, model_admin):
-        return (
-            ('completed', '완료됨'),
-            ('in_progress', '진행 중'),
-            ('not_started', '시작 안 함'),
-        )
-
-    def queryset(self, request, queryset):
-        if self.value() == 'completed':
-            return queryset.filter(completed=True)
-        if self.value() == 'in_progress':
-            return queryset.filter(completed=False).exclude(rating__isnull=True).distinct()
-        if self.value() == 'not_started':
-            return queryset.filter(completed=False, rating__isnull=True)
-
 
 # 튜플 할당 폼
 class TupleAssignmentForm(forms.Form):
@@ -309,7 +294,29 @@ class TupleAssignmentForm(forms.Form):
         required=False
     )
 
+class CompletionStatusFilter(SimpleListFilter):
+    title = '완료 상태'
+    parameter_name = 'completion_status'
 
+    def lookups(self, request, model_admin):
+        return (
+            ('completed', '완료됨'),
+            ('in_progress', '진행 중'),
+            ('not_started', '시작 안 함'),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == 'completed':
+            return queryset.filter(completed=True)
+        elif self.value() == 'in_progress':
+            return queryset.filter(completed=False).filter(
+                word_tuple__rating__isnull=False
+            ).distinct()
+        elif self.value() == 'not_started':
+            return queryset.filter(completed=False).filter(
+                word_tuple__rating__isnull=True
+            )
+        return queryset
 # 사용자-튜플 할당 관리자 페이지
 class UserWordTupleAdmin(admin.ModelAdmin):
     list_display = (
@@ -323,6 +330,7 @@ class UserWordTupleAdmin(admin.ModelAdmin):
     list_select_related = ('user', 'word_tuple')
     actions = ['mark_as_completed', 'mark_as_not_completed', 'reassign_tuples']
     list_per_page = 50
+
 
     def tuple_words_display(self, obj):
         return ", ".join([word.text for word in obj.word_tuple.words.all()])
